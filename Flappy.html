@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة Flappy Bird الجزائرية</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        /* هذي هي شاشة اللعبة */
+        #gameCanvas {
+            border: 4px solid #fff;
+            background-color: #70c5ce; /* لون السماء */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        #scoreBoard {
+            position: absolute;
+            top: 20px;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="scoreBoard">السكور: <span id="score">0</span></div>
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+
+        // صوالح الطير
+        let birdY = 250;
+        let birdX = 50;
+        let velocity = 0;
+        let gravity = 0.4;   // قوة الجاذبية اللي تهبط الطير
+        let jump = -7;       // قوة القفزة كي تكليكي
+        let birdSize = 20;
+
+        // صوالح الأنابيب (Pipes)
+        let pipes = [];
+        let pipeWidth = 60;
+        let pipeGap = 130;   // الفراغ بين الأنبوب الفوقاني والتحتاني
+        let pipeSpeed = 2;   // سرعة تحرك الأنابيب
+        let score = 0;
+        let gameOver = false;
+
+        // إضافة أول أنبوب
+        function generatePipe() {
+            let minHeight = 50;
+            let maxHeight = canvas.height - pipeGap - 50;
+            let height = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+            pipes.push({
+                x: canvas.width,
+                top: height,
+                bottom: canvas.height - height - pipeGap,
+                passed: false
+            });
+        }
+        generatePipe();
+
+        // الحلقة الرئيسية تاع اللعبة (تتنفذ 60 خطرة في الثانية)
+        function gameLoop() {
+            if (gameOver) {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "white";
+                ctx.font = "30px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("خسرت ا اخي 🐸", canvas.width / 2, canvas.height / 2);
+                ctx.font = "20px Arial";
+                ctx.fillText("اكليكي باش تعاود", canvas.width / 2, canvas.height / 2 + 40);
+                return;
+            }
+
+            // 1. مسح الشاشة السابقة
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 2. تحريك الطير بالجاذبية
+            velocity += gravity;
+            birdY += velocity;
+
+            // رسم الطير (دائرة صفراء)
+            ctx.fillStyle = "#f1c40f";
+            ctx.beginPath();
+            ctx.arc(birdX, birdY, birdSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            // إذا ضرب في الأرض أو خرج من السماء
+            if (birdY + birdSize > canvas.height || birdY - birdSize < 0) {
+                gameOver = true;
+            }
+
+            // 3. تحريك ورسم الأنابيب
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                pipes[i].x -= pipeSpeed;
+
+                // رسم الأنبوب الفوقاني (أخضر)
+                ctx.fillStyle = "#2ecc71";
+                ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
+
+                // رسم الأنبوب التحتاني
+                ctx.fillRect(pipes[i].x, canvas.height - pipes[i].bottom, pipeWidth, pipes[i].bottom);
+
+                // حساب السكور كي يفوت الأنبوب
+                if (!pipes[i].passed && pipes[i].x + pipeWidth < birdX) {
+                    score++;
+                    scoreEl.innerText = score;
+                    pipes[i].passed = true;
+                }
+
+                // كشف التصادم (إذا ضرب في الأنبوب)
+                if (
+                    birdX + birdSize > pipes[i].x && 
+                    birdX - birdSize < pipes[i].x + pipeWidth && 
+                    (birdY - birdSize < pipes[i].top || birdY + birdSize > canvas.height - pipes[i].bottom)
+                ) {
+                    gameOver = true;
+                }
+
+                // مسح الأنابيب اللي تخرج من الشاشة
+                if (pipes[i].x + pipeWidth < 0) {
+                    pipes.splice(i, 1);
+                }
+            }
+
+            // زيادة أنبوب جديد كل ما الأنبوب الأخير يقرب
+            if (pipes[pipes.length - 1].x < canvas.width - 200) {
+                generatePipe();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // التحكم: كي تكليكي في أي بلاصة بالشاشة يطير الطير
+        window.addEventListener('click', function() {
+            if (gameOver) {
+                // إعادة اللعبة من جديد
+                birdY = 250;
+                velocity = 0;
+                pipes = [];
+                generatePipe();
+                score = 0;
+                scoreEl.innerText = score;
+                gameOver = false;
+                gameLoop();
+            } else {
+                velocity = jump; // الطير ينقز لفوق
+            }
+        });
+
+        // تشغيل اللعبة لأول مرة
+        gameLoop();
+    </script>
+</body>
+</html>

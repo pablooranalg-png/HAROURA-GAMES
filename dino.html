@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة ديناصور الأنمي الأسطورية</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        /* شاشة اللعبة بخلفية الأنمي مدمجة داخل الكود */
+        #gameContainer {
+            position: relative;
+            width: 600px;
+            height: 250px;
+            background-color: #333;
+            background-image: url('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAH0AasBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='); /* تم اختصار الكود النصي هنا لسهولة النسخ وتفادي الثقل */
+            background-size: cover;
+            background-position: center;
+            border: 4px solid #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            overflow: hidden;
+        }
+
+        /* الديناصور مدمج بلون احتياطي لضمان الظهور الفوري */
+        #dino {
+            position: absolute;
+            bottom: 10px;
+            left: 50px;
+            width: 50px;
+            height: 50px;
+            background-color: #33ccff; /* أزرق فاتح يظهر فوراً لو حجب التطبيق الصورة */
+            border-radius: 8px;
+        }
+
+        /* الصبار مدمج بلون احتياطي لضمان الظهور الفوري */
+        #cactus {
+            position: absolute;
+            bottom: 10px;
+            left: 580px;
+            width: 35px;
+            height: 50px;
+            background-color: #2ecc71; /* أخضر يظهر فوراً */
+            border-radius: 4px;
+        }
+
+        #scoreBoard {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        #gameOverText {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 26px;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 3px 3px 6px #000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <div id="scoreBoard">السكور: <span id="score">0</span></div>
+        <div id="dino"></div>
+        <div id="cactus"></div>
+        <div id="gameOverText">خسرت يا بروش! ⚔️<br>اضغط هنا لإعادة اللعب</div>
+    </div>
+
+    <script>
+        const dino = document.getElementById('dino');
+        const cactus = document.getElementById('cactus');
+        const scoreEl = document.getElementById('score');
+        const gameOverText = document.getElementById('gameOverText');
+
+        let isJumping = false;
+        let score = 0;
+        let gameOver = false;
+        let cactusPosition = 580;
+        let cactusSpeed = 5;
+
+        function jump() {
+            if (isJumping || gameOver) return;
+            isJumping = true;
+            let position = 10;
+            
+            let upInterval = setInterval(() => {
+                if (position >= 140) {
+                    clearInterval(upInterval);
+                    let downInterval = setInterval(() => {
+                        if (position <= 10) {
+                            clearInterval(downInterval);
+                            isJumping = false;
+                        }
+                        position -= 6;
+                        dino.style.bottom = position + 'px';
+                    }, 12);
+                }
+                position += 6;
+                dino.style.bottom = position + 'px';
+            }, 12);
+        }
+
+        function moveCactus() {
+            if (gameOver) return;
+
+            cactusPosition -= cactusSpeed;
+            if (cactusPosition < -40) {
+                cactusPosition = 580;
+                score++;
+                scoreEl.innerText = score;
+                if (score % 5 === 0) cactusSpeed += 0.7;
+            }
+            cactus.style.left = cactusPosition + 'px';
+
+            let dinoBottom = parseInt(window.getComputedStyle(dino).getPropertyValue('bottom'));
+            
+            if (cactusPosition > 50 && cactusPosition < 90 && dinoBottom <= 55) {
+                gameOver = true;
+                gameOverText.style.display = 'block';
+            }
+
+            requestAnimationFrame(moveCactus);
+        }
+
+        window.addEventListener('click', function() {
+            if (gameOver) {
+                gameOver = false;
+                gameOverText.style.display = 'none';
+                score = 0;
+                scoreEl.innerText = score;
+                cactusPosition = 580;
+                cactusSpeed = 5;
+                dino.style.bottom = '10px';
+                moveCactus();
+            } else {
+                jump();
+            }
+        });
+
+        moveCactus();
+    </script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة إكس أو الأسطورية - Tic Tac Toe</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        body { background-color: #0f172a; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; color: #fff; }
+        
+        h1 { font-size: 28px; margin-bottom: 10px; color: #38bdf8; text-shadow: 0 0 10px rgba(56,189,248,0.3); }
+        
+        /* واجهة اختيار وضع اللعب */
+        .mode-selection { display: flex; gap: 15px; margin-bottom: 20px; }
+        .mode-btn { background-color: #1e293b; border: 2px solid #334155; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .mode-btn.active { background-color: #38bdf8; border-color: #0284c7; color: #0f172a; box-shadow: 0 0 15px rgba(56,189,248,0.4); }
+        
+        /* حالة اللعبة (من عليه الدور) */
+        .status { font-size: 20px; margin-bottom: 15px; font-weight: 600; color: #cbd5e1; height: 30px; }
+        
+        /* شبكة اللعب (الرقعة) */
+        .board { display: grid; grid-template-columns: repeat(3, 100px); grid-template-rows: repeat(3, 100px); gap: 10px; background-color: #334155; padding: 10px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+        
+        /* المربعات */
+        .cell { background-color: #1e293b; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 48px; font-weight: bold; cursor: pointer; transition: background-color 0.2s, transform 0.1s; }
+        .cell:active { transform: scale(0.95); }
+        .cell.x { color: #ef4444; text-shadow: 0 0 10px rgba(239,68,68,0.4); }
+        .cell.o { color: #38bdf8; text-shadow: 0 0 10px rgba(56,189,248,0.4); }
+        .cell.winner { background-color: #15803d; }
+        
+        /* زر إعادة اللعب */
+        .reset-btn { margin-top: 25px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(245,158,11,0.3); transition: opacity 0.2s; }
+        .reset-btn:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+    <h1>لعبة Tic Tac Toe 🎮</h1>
+    
+    <div class="mode-selection">
+        <button class="mode-btn active" id="cpuModeBtn" onclick="setMode('cpu')">ضد الكمبيوتر (CPU)</button>
+        <button class="mode-btn" id="friendModeBtn" onclick="setMode('friend')">مع صديق (2P)</button>
+    </div>
+
+    <div class="status" id="statusText">دور اللاعب X</div>
+
+    <div class="board" id="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetGame()">إعادة تشغيل</button>
+
+    <script>
+        const board = document.getElementById('board');
+        const cells = document.querySelectorAll('.cell');
+        const statusText = document.getElementById('statusText');
+        const cpuModeBtn = document.getElementById('cpuModeBtn');
+        const friendModeBtn = document.getElementById('friendModeBtn');
+
+        let gameMode = 'cpu'; 
+        let currentPlayer = 'X'; 
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        let isGameActive = true;
+
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], 
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], 
+            [0, 4, 8], [2, 4, 6]             
+        ];
+
+        function setMode(mode) {
+            gameMode = mode;
+            if (mode === 'cpu') {
+                cpuModeBtn.classList.add('active');
+                friendModeBtn.classList.remove('active');
+            } else {
+                friendModeBtn.classList.add('active');
+                cpuModeBtn.classList.remove('active');
+            }
+            resetGame();
+        }
+
+        cells.forEach(cell => {
+            cell.addEventListener('click', () => {
+                const index = cell.getAttribute('data-index');
+                
+                if (gameState[index] !== "" || !isGameActive || (gameMode === 'cpu' && currentPlayer === 'O')) return;
+
+                makeMove(index, currentPlayer);
+                
+                if (isGameActive && gameMode === 'cpu' && currentPlayer === 'O') {
+                    setTimeout(cpuMove, 500); // تأخير بسيط ليبدو اللعب طبيعياً
+                }
+            });
+        });
+
+        function makeMove(index, player) {
+            gameState[index] = player;
+            cells[index].innerText = player;
+            cells[index].classList.add(player.toLowerCase());
+
+            checkResult();
+        }
+
+        // ذكاء حركي للكمبيوتر (CPU)
+        function cpuMove() {
+            if (!isGameActive) return;
+
+            // 1. محاولة الفوز إذا كان لديه حركتين متتاليتين
+            let move = findBestMove('O');
+            
+            // 2. حظر اللاعب X لمنعه من الفوز
+            if (move === null) {
+                move = findBestMove('X');
+            }
+
+            // 3. أخذ المربع الأوسط كأولوية استراتيجية
+            if (move === null && gameState[4] === "") {
+                move = 4;
+            }
+
+            // 4. اختيار مربع عشوائي من الفارغين
+            if (move === null) {
+                let emptyCells = [];
+                gameState.forEach((val, idx) => {
+                    if (val === "") emptyCells.push(idx);
+                });
+                if (emptyCells.length > 0) {
+                    move = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                }
+            }
+
+            if (move !== null) {
+                makeMove(move, 'O');
+            }
+        }
+
+        function findBestMove(player) {
+            for (let condition of winningConditions) {
+                let count = 0;
+                let emptyIndex = null;
+                
+                for (let index of condition) {
+                    if (gameState[index] === player) count++;
+                    else if (gameState[index] === "") emptyIndex = index;
+                }
+                
+                if (count === 2 && emptyIndex !== null) {
+                    return emptyIndex;
+                }
+            }
+            return null;
+        }
+
+        function checkResult() {
+            let roundWon = false;
+            let winningLine = [];
+
+            for (let i = 0; i < winningConditions.length; i++) {
+                const winCondition = winningConditions[i];
+                let a = gameState[winCondition[0]];
+                let b = gameState[winCondition[1]];
+                let c = gameState[winCondition[2]];
+
+                if (a === '' || b === '' || c === '') continue;
+                
+                if (a === b && b === c) {
+                    roundWon = true;
+                    winningLine = winCondition;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                statusText.innerHTML = `🎉 الفائز هو اللاعب <span style="color: ${currentPlayer === 'X' ? '#ef4444' : '#38bdf8'}">${currentPlayer}</span>!`;
+                isGameActive = false;
+                winningLine.forEach(idx => cells[idx].classList.add('winner'));
+                return;
+            }
+
+            if (!gameState.includes("")) {
+                statusText.innerText = "🤝 تعادل! لا يوجد فائز.";
+                isGameActive = false;
+                return;
+            }
+
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            
+            if (gameMode === 'cpu') {
+                statusText.innerText = currentPlayer === 'X' ? "دورك الآن (X)" : "الكمبيوتر يفكر... 🤖";
+            } else {
+                statusText.innerText = `دور اللاعب ${currentPlayer}`;
+            }
+        }
+
+        function resetGame() {
+            currentPlayer = 'X';
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            isGameActive = true;
+            statusText.innerText = gameMode === 'cpu' ? "دورك الآن (X)" : "دور اللاعب X";
+            
+            cells.forEach(cell => {
+                cell.innerText = "";
+                cell.className = "cell"; 
+            });
+        }
+    </script>
+</body>
+</html>

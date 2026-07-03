@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صابواي 3D - مود الجحيم والقفز</title>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; }
+        #scoreBoard { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: #ff1f55; font-size: 35px; font-weight: bold; text-shadow: 3px 3px 6px #000; z-index: 10; }
+        #gameOverText { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 26px; background: rgba(255,0,0,0.4); border: 2px solid #ff1f55; padding: 25px; border-radius: 15px; text-align: center; z-index: 10; box-shadow: 0 0 25px rgba(255, 31, 85, 0.6); }
+        /* توجيهات للمستخدم */
+        #hint { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; font-size: 14px; pointer-events: none; text-align: center; width: 80%; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="scoreBoard">السكور: <span id="score">0</span></div>
+    <div id="gameOverText">بلعولك الطريق! 💀<br>اكليكي هنا باش تعاود تريسكي</div>
+    <div id="hint">اضغط فوق للقفز ⬆️ | اضغط تحت يمين/يسار للتحرك ↔️</div>
+
+    <script>
+        let scene, camera, renderer, playerGroup, obstacles = [];
+        let score = 0; let gameOver = false; 
+        let speed = 0.55; 
+        const lanes = [-2, 0, 2]; let currentLane = 1;
+        
+        // متغيرات القفز
+        let isJumping = false;
+        let jumpVelocity = 0;
+        const gravity = -0.016;
+        const jumpForce = 0.32;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020205);
+            scene.fog = new THREE.FogExp2(0x020205, 0.035);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 3.8, 6);
+            camera.lookAt(0, 1.5, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            const light = new THREE.DirectionalLight(0xffffff, 1.8);
+            light.position.set(5, 10, 7).normalize();
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0x222222));
+
+            // الطريق
+            const roadGeo = new THREE.BoxGeometry(6, 0.1, 100);
+            const roadMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+            const road = new THREE.Mesh(roadGeo, roadMat);
+            road.position.z = -40;
+            scene.add(road);
+
+            // الروبوت (ؤولوت)
+            playerGroup = new THREE.Group();
+            const blueMat = new THREE.MeshLambertMaterial({ color: 0x00a8ff });
+            const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const redMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 });
+
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.4), blueMat);
+            torso.position.y = 0.8;
+            playerGroup.add(torso);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), whiteMat);
+            head.position.y = 1.4;
+            playerGroup.add(head);
+
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat);
+            leftArm.position.set(-0.45, 0.8, 0);
+            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat);
+            rightArm.position.set(0.45, 0.8, 0);
+            playerGroup.add(leftArm, rightArm);
+
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat);
+            leftLeg.position.set(-0.2, 0.22, 0);
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat);
+            rightLeg.position.set(0.2, 0.22, 0);
+            playerGroup.add(leftLeg, rightLeg);
+
+            playerGroup.position.set(lanes[currentLane], 0, 2);
+            scene.add(playerGroup);
+
+            setInterval(spawnObstacle, 700);
+
+            // نظام تحكم ذكي للقفز والتحرك باللمس
+            window.addEventListener('click', (e) => {
+                if (gameOver) { resetGame(); return; }
+                
+                let clickX = e.clientX;
+                let clickY = e.clientY;
+                let h = window.innerHeight;
+                let w = window.innerWidth;
+
+                if (clickY < h * 0.6) {
+                    // إذا كليكا الفوق (يقفز)
+                    if (!isJumping) {
+                        isJumping = true;
+                        jumpVelocity = jumpForce;
+                    }
+                } else {
+                    // إذا كليكا التحت (يتحرك يمين أو يسار)
+                    if (clickX > w / 2) {
+                        if (currentLane < 2) currentLane++;
+                    } else {
+                        if (currentLane > 0) currentLane--;
+                    }
+                }
+            });
+
+            animate();
+        }
+
+        function spawnObstacle() {
+            if (gameOver) return;
+
+            // تحديد نوع العائق عشوائياً: 70% عائق عادي، 30% عائق منخفض للقفز
+            const isJumpable = Math.random() < 0.35;
+            let obsGeo, obsMat, type;
+
+            if (isJumpable) {
+                // عائق أصفر منخفض (مخصص للقفز)
+                obsGeo = new THREE.BoxGeometry(1.5, 0.35, 0.8);
+                obsMat = new THREE.MeshLambertMaterial({ color: 0xf1c40f }); // أصفر نيون
+                type = "jumpable";
+            } else {
+                // عائق أحمر عالي (مستحيل تقفز فوقه، لازم تتهرب)
+                obsGeo = new THREE.BoxGeometry(1.2, 1.5, 0.8);
+                obsMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 }); // أحمر جحيمي
+                type = "tall";
+            }
+
+            const obs = new THREE.Mesh(obsGeo, obsMat);
+            const randomLane = Math.floor(Math.random() * 3);
+            
+            // ضبط الارتفاع حسب النوع لكي يستقر فوق الطريق تماماً
+            let posY = isJumpable ? 0.175 : 0.75;
+            obs.position.set(lanes[randomLane], posY, -55);
+            
+            scene.add(obs);
+            obstacles.push({ mesh: obs, type: type, lane: randomLane });
+        }
+
+        function animate() {
+            if (gameOver) return;
+            requestAnimationFrame(animate);
+
+            // معالجة حركة القفز والجاذبية للروبوت
+            if (isJumping) {
+                jumpVelocity += gravity;
+                playerGroup.position.y += jumpVelocity;
+                if (playerGroup.position.y <= 0) {
+                    playerGroup.position.y = 0;
+                    isJumping = false;
+                    jumpVelocity = 0;
+                }
+            }
+
+            // سلاسة حركة الانتقال بين الممرات
+            playerGroup.position.x += (lanes[currentLane] - playerGroup.position.x) * 0.3;
+
+            // تحريك اليدين حركياً
+            const textSpeed = Date.now() * (speed * 0.03);
+            playerGroup.children[2].rotation.x = Math.sin(textSpeed) * 0.7;
+            playerGroup.children[3].rotation.x = -Math.sin(textSpeed) * 0.7;
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.mesh.position.z += speed;
+
+                // كشف التصادم الصارم جداً (المنطقة الحرجة z بين 1.4 و 2.6)
+                if (obs.mesh.position.z > 1.4 && obs.mesh.position.z < 2.6) {
+                    // إذا كان العائق في نفس ممر اللاعب الحالي
+                    if (obs.lane === currentLane) {
+                        if (obs.type === "tall") {
+                            // العائق العالي يقتلك دائماً حتى لو قفزت
+                            gameOver = true;
+                            document.getElementById('gameOverText').style.display = 'block';
+                        } else if (obs.type === "jumpable") {
+                            // العائق الأصفر يقتلك فقط إذا كنت تمشي على الأرض (ولم تقفز بارتفاع كافٍ)
+                            if (playerGroup.position.y < 0.4) {
+                                gameOver = true;
+                                document.getElementById('gameOverText').style.display = 'block';
+                            }
+                        }
+                    }
+                }
+
+                if (obs.mesh.position.z > 5) {
+                    scene.remove(obs.mesh);
+                    obstacles.splice(i, 1);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                    speed += 0.015; // تسارع تدريجي جحيمي
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        function resetGame() {
+            gameOver = false; document.getElementById('gameOverText').style.display = 'none';
+            score = 0; document.getElementById('score').innerText = score; speed = 0.55;
+            currentLane = 1; playerGroup.position.set(lanes[currentLane], 0, 2);
+            isJumping = false; jumpVelocity = 0;
+            obstacles.forEach(obs => scene.remove(obs.mesh)); obstacles = [];
+            animate();
+        }
+        window.onload = init;
+    </script>
+</body>
+</html>
