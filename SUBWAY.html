@@ -3,255 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>صابواي 3D - مود الجحيم والعملات الكثيرة</title>
+    <title>صابواي 3D - النسخة المستقرة</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; user-select: none; }
-        
-        /* لوحة العدادات */
-        #hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 30px; z-index: 10; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 4px #000; }
+        #hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; font-size: 20px; font-weight: bold; text-shadow: 2px 2px 4px #000; width: 90%; justify-content: center; }
         #scoreBox { color: #ff1f55; }
         #coinBox { color: #ffd700; }
-
-        #gameOverText { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 26px; background: rgba(255,0,0,0.4); border: 2px solid #ff1f55; padding: 25px; border-radius: 15px; text-align: center; z-index: 10; box-shadow: 0 0 25px rgba(255, 31, 85, 0.6); cursor: pointer; }
-        #hint { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; font-size: 14px; pointer-events: none; text-align: center; width: 80%; }
+        #boardBox { color: #00a8ff; }
+        #boardTimer { display: none; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); color: #00d2ff; font-size: 20px; font-weight: bold; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 15px; z-index: 10; }
+        .ui-screen { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; width: 85%; max-width: 340px; background: rgba(5,5,15,0.95); border: 2px solid #ff1f55; padding: 20px; border-radius: 15px; text-align: center; z-index: 999; box-shadow: 0 0 25px rgba(255, 31, 85, 0.6); max-height: 85vh; overflow-y: auto; }
+        .btn-main { background: #ff1f55; color: white; border: none; padding: 12px 20px; font-size: 18px; font-weight: bold; border-radius: 10px; cursor: pointer; margin: 8px 0; width: 100%; box-shadow: 0 4px 10px rgba(255,31,85,0.4); display: block; }
+        .btn-shop { background: #ffd700; color: #000; }
+        .btn-cancel { background: #444; color: #ccc; }
+        .shop-section { border-top: 1px dashed #333; margin-top: 15px; padding-top: 15px; }
+        .shop-title { color: #ffd700; font-size: 18px; margin-bottom: 10px; font-weight: bold; }
+        .shop-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .shop-item { background: #111122; border: 1px solid #333; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .btn-buy { background: #ffd700; color: #000; border: none; padding: 5px 12px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+        .btn-buy.owned { background: #00a8ff; color: white; cursor: default; }
+        #hint { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; font-size: 13px; pointer-events: none; text-align: center; width: 80%; z-index: 5; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-
     <div id="hud">
-        <div id="scoreBox">🏆 سكور: <span id="score">0</span></div>
-        <div id="coinBox">🪙 ذهب: <span id="coins">0</span></div>
+        <div id="scoreBox">🏆: <span id="score">0</span></div>
+        <div id="coinBox">🪙: <span id="coins">0</span></div>
+        <div id="boardBox">🛹: <span id="boardCount">0</span></div>
+    </div>
+    <div id="boardTimer">🛹 حماية: <span id="timerVal">7</span>s</div>
+
+    <div id="startScreen" class="ui-screen">
+        <h2 style="color: #00a8ff; margin-top:0; margin-bottom: 20px;">ؤولوت سابواي 🤖</h2>
+        <button class="btn-main" onclick="startGame()">اضغط لبدء اللعب 🏃‍♂️</button>
+        <button class="btn-main btn-shop" onclick="openShop('start')">🏪 فتح المتجر</button>
     </div>
 
-    <div id="gameOverText" onclick="resetGame()">بلعولك الطريق! 💀<br>اكليكي هنا باش تعاود تريسكي</div>
-    <div id="hint">اسحب للأعلى للقفز ⬆️ | اسحب يميناً ويساراً للتحرك ↔️</div>
+    <div id="gameOverScreen" class="ui-screen" style="display: none;">
+        <h2 style="color: #ff1f55; margin-top:0;">تحطمت! 💥</h2>
+        <p id="statsText" style="font-size: 16px; margin: 10px 0;"></p>
+        <button class="btn-main" id="btnContinue" onclick="continueGame()">🪙 ادفع 10 للاكمال</button>
+        <button class="btn-main btn-cancel" onclick="noThanks()">لا شكراً ❌</button>
+    </div>
 
+    <div id="shopScreen" class="ui-screen" style="display: none;">
+        <div class="shop-title">🏪 متجر المشتريات</div>
+        <div class="shop-grid">
+            <div class="shop-item"><span>🛹 زلاجة واحدة (7 ثوانٍ)</span><button class="btn-buy" onclick="buyItem('board_1', 10)">🪙 10</button></div>
+            <div class="shop-item"><span>🛹 حزمة 10 زلاجات</span><button class="btn-buy" onclick="buyItem('board_10', 80)">🪙 80</button></div>
+            <div class="shop-item"><span>🟢 الروبوت الأخضر نيون</span><button class="btn-buy" id="btn-skin-green" onclick="buyItem('skin_green', 30)">🪙 30</button></div>
+            <div class="shop-item"><span>👑 الروبوت الذهبي الملكي</span><button class="btn-buy" id="btn-skin-gold" onclick="buyItem('skin_gold', 50)">🪙 50</button></div>
+            <div class="shop-item"><span>🟣 الروبوت الأرجواني الخارق</span><button class="btn-buy" id="btn-skin-purple" onclick="buyItem('skin_purple', 100)">🪙 100</button></div>
+        </div>
+        <button class="btn-main btn-cancel" onclick="closeShop()" style="margin-top: 15px;">العودة للقائمة 🔙</button>
+    </div>
+    <div id="hint">اسحب للتحرك | اضغط مرتين (Double Tap) لتفعيل الزلاجة 🛹</div>
     <script>
-        let scene, camera, renderer, playerGroup, obstacles = [], coinsArray = [];
-        let score = 0; let coins = 0; let gameOver = false; 
-        let speed = 0.55; 
-        const lanes = [-2, 0, 2]; let currentLane = 1;
-        
-        let isJumping = false;
-        let jumpVelocity = 0;
-        const gravity = -0.016;
-        const jumpForce = 0.32;
+        let scene, camera, renderer, playerGroup, torsoMesh, shieldMesh, obstacles = [], coinsArray = [];
+        let score = 0; let currentSessionCoins = 0; let gameOver = false; let isGameStarted = false;
+        let speed = 0.55; const lanes = [-2, 0, 2]; let currentLane = 1;
+        let isJumping = false; let jumpVelocity = 0; const gravity = -0.016; const jumpForce = 0.32;
+        let hasActiveBoard = false; let boardTimeLeft = 0; let boardTimerInterval; let lastTapTime = 0; let previousScreen = 'start';
 
+        let totalCoins = parseInt(localStorage.getItem('subway_total_coins')) || 0;
+        let ownedSkins = JSON.parse(localStorage.getItem('subway_owned_skins')) || ['skin_blue'];
+        let activeSkin = localStorage.getItem('subway_active_skin') || 'skin_blue';
+        let totalBoards = parseInt(localStorage.getItem('subway_total_boards')) || 0;
+
+        function saveStats() {
+            localStorage.setItem('subway_total_coins', totalCoins);
+            localStorage.setItem('subway_owned_skins', JSON.stringify(ownedSkins));
+            localStorage.setItem('subway_active_skin', activeSkin);
+            localStorage.setItem('subway_total_boards', totalBoards);
+            updateHudDisplay();
+        }
+        function updateHudDisplay() {
+            document.getElementById('coins').innerText = totalCoins;
+            document.getElementById('boardCount').innerText = totalBoards;
+            if(ownedSkins.includes('skin_green')) { setupOwnedButton('btn-skin-green', 'skin_green'); }
+            if(ownedSkins.includes('skin_gold')) { setupOwnedButton('btn-skin-gold', 'skin_gold'); }
+            if(ownedSkins.includes('skin_purple')) { setupOwnedButton('btn-skin-purple', 'skin_purple'); }
+        }
+        function setupOwnedButton(id, skinName) {
+            let btn = document.getElementById(id);
+            if(btn) {
+                if(activeSkin === skinName) { btn.innerText = "مفعّل ✅"; btn.className = "btn-buy owned"; }
+                else { btn.innerText = "تفعيل 🔄"; btn.className = "btn-buy"; btn.style.background = "#00a8ff"; btn.style.color = "white"; }
+            }
+        }
+        function buyItem(item, price) {
+            if (item.startsWith('board_')) {
+                if (totalCoins >= price) { totalCoins -= price; totalBoards += (item === 'board_1' ? 1 : 10); saveStats(); }
+                else { alert("ما عندكش ذهب كافي! 🪙"); }
+            } else if (item.startsWith('skin_')) {
+                if (ownedSkins.includes(item)) { activeSkin = item; saveStats(); updatePlayerSkin(); }
+                else if (totalCoins >= price) { totalCoins -= price; ownedSkins.push(item); activeSkin = item; saveStats(); updatePlayerSkin(); }
+                else { alert("ما عندكش ذهب كافي! 🪙"); }
+            }
+        }
+        function updatePlayerSkin() {
+            if (!torsoMesh) return;
+            let colorHex = 0x00a8ff;
+            if (activeSkin === 'skin_green') colorHex = 0x00ff66;
+            if (activeSkin === 'skin_gold') colorHex = 0xffd700;
+            if (activeSkin === 'skin_purple') colorHex = 0x9900ff;
+            torsoMesh.material.color.setHex(colorHex);
+        }
         function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020205);
-            scene.fog = new THREE.FogExp2(0x020205, 0.035);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 3.8, 6);
-            camera.lookAt(0, 1.5, 0);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            const light = new THREE.DirectionalLight(0xffffff, 1.8);
-            light.position.set(5, 10, 7).normalize();
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0x222222));
-
-            // الطريق الأصلي
-            const roadGeo = new THREE.BoxGeometry(6, 0.1, 100);
-            const roadMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-            const road = new THREE.Mesh(roadGeo, roadMat);
-            road.position.z = -40;
-            scene.add(road);
-
-            // الروبوت القديم الأصلي (ؤولوت)
-            playerGroup = new THREE.Group();
-            const blueMat = new THREE.MeshLambertMaterial({ color: 0x00a8ff });
-            const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-            const redMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 });
-
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.4), blueMat);
-            torso.position.y = 0.8;
-            playerGroup.add(torso);
-
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), whiteMat);
-            head.position.y = 1.4;
-            playerGroup.add(head);
-
-            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat);
-            leftArm.position.set(-0.45, 0.8, 0);
-            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat);
-            rightArm.position.set(0.45, 0.8, 0);
-            playerGroup.add(leftArm, rightArm);
-
-            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat);
-            leftLeg.position.set(-0.2, 0.22, 0);
-            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat);
-            rightLeg.position.set(0.2, 0.22, 0);
-            playerGroup.add(leftLeg, rightLeg);
-
-            playerGroup.position.set(lanes[currentLane], 0, 2);
-            scene.add(playerGroup);
-
-            // توقيت توليد مستقل (العوائق تظهر بانتظام، والذهب يظهر بكثرة وسرعة)
-            setInterval(spawnObstacle, 750);
-            setInterval(spawnCoin, 300); // توليد سريع جداً للأموال كل 300 مللي ثانية
-
-            // نظام السحب (Swipe Controls)
-            let touchStartX = 0;
-            let touchStartY = 0;
-
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x020205); scene.fog = new THREE.FogExp2(0x020205, 0.035);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); camera.position.set(0, 3.8, 6); camera.lookAt(0, 1.5, 0);
+            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
+            const light = new THREE.DirectionalLight(0xffffff, 1.8); light.position.set(5, 10, 7).normalize(); scene.add(light); scene.add(new THREE.AmbientLight(0x222222));
+            const roadGeo = new THREE.BoxGeometry(6, 0.1, 100); const roadMat = new THREE.MeshLambertMaterial({ color: 0x111111 }); const road = new THREE.Mesh(roadGeo, roadMat); road.position.z = -40; scene.add(road);
+            playerGroup = new THREE.Group(); const blueMat = new THREE.MeshLambertMaterial({ color: 0x00a8ff }); const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); const redMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 });
+            torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.4), blueMat); torsoMesh.position.y = 0.8; playerGroup.add(torsoMesh);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), whiteMat); head.position.y = 1.4; playerGroup.add(head);
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat); leftArm.position.set(-0.45, 0.8, 0); const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat); rightArm.position.set(0.45, 0.8, 0); playerGroup.add(leftArm, rightArm);
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat); leftLeg.position.set(-0.2, 0.22, 0); const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat); rightLeg.position.set(0.2, 0.22, 0); playerGroup.add(leftLeg, rightLeg);
+            const shieldGeo = new THREE.SphereGeometry(1.0, 16, 16); const shieldMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.0 }); shieldMesh = new THREE.Mesh(shieldGeo, shieldMat); shieldMesh.position.y = 0.8; playerGroup.add(shieldMesh);
+            playerGroup.position.set(lanes[currentLane], 0, 2); scene.add(playerGroup);
+            updatePlayerSkin(); updateHudDisplay();
+            setInterval(spawnObstacle, 750); setInterval(spawnCoin, 300);
+            let touchStartX = 0; let touchStartY = 0;
             window.addEventListener('touchstart', (e) => {
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
+                touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
+                let currentTime = new Date().getTime(); let tapLength = currentTime - lastTapTime;
+                if (tapLength < 250 && tapLength > 0) { manuallyActivateBoard(); }
+                lastTapTime = currentTime;
             }, {passive: true});
-
             window.addEventListener('touchend', (e) => {
-                if (gameOver) return;
-
-                let touchEndX = e.changedTouches[0].clientX;
-                let touchEndY = e.changedTouches[0].clientY;
-
-                let diffX = touchEndX - touchStartX;
-                let diffY = touchEndY - touchStartY;
-
+                if (!isGameStarted || gameOver) return;
+                let touchEndX = e.changedTouches[0].clientX; let touchEndY = e.changedTouches[0].clientY;
+                let diffX = touchEndX - touchStartX; let diffY = touchEndY - touchStartY;
                 if (Math.abs(diffX) > Math.abs(diffY)) {
-                    if (diffX > 40) {
-                        if (currentLane < 2) currentLane++; 
-                    } else if (diffX < -40) {
-                        if (currentLane > 0) currentLane--; 
-                    }
-                } else {
-                    if (diffY < -40 && !isJumping) {
-                        isJumping = true;
-                        jumpVelocity = jumpForce;
-                    }
-                }
+                    if (diffX > 40 && currentLane < 2) currentLane++; 
+                    else if (diffX < -40 && currentLane > 0) currentLane--; 
+                } else { if (diffY < -40 && !isJumping) { isJumping = true; jumpVelocity = jumpForce; } }
             });
-
             animate();
         }
-
-        // دالة مخصصة لتوليد الأموال بكثرة
+        function startGame() { document.getElementById('startScreen').style.display = 'none'; isGameStarted = true; }
+        function openShop(fromScreen) { previousScreen = fromScreen; document.getElementById('startScreen').style.display = 'none'; document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('shopScreen').style.display = 'block'; }
+        function closeShop() { document.getElementById('shopScreen').style.display = 'none'; if(previousScreen === 'start') { document.getElementById('startScreen').style.display = 'block'; } else { document.getElementById('gameOverScreen').style.display = 'block'; } }
+        function manuallyActivateBoard() {
+            if (!isGameStarted || gameOver || hasActiveBoard) return;
+            if (totalBoards > 0) {
+                totalBoards--; hasActiveBoard = true; boardTimeLeft = 7; saveStats();
+                shieldMesh.material.opacity = 0.35; document.getElementById('boardTimer').style.display = 'block'; document.getElementById('timerVal').innerText = boardTimeLeft;
+                clearInterval(boardTimerInterval);
+                boardTimerInterval = setInterval(() => { boardTimeLeft--; document.getElementById('timerVal').innerText = boardTimeLeft; if (boardTimeLeft <= 0) { deactivateBoard(); } }, 1000);
+            }
+        }
+        function deactivateBoard() { hasActiveBoard = false; clearInterval(boardTimerInterval); shieldMesh.material.opacity = 0.0; document.getElementById('boardTimer').style.display = 'none'; }
         function spawnCoin() {
-            if (gameOver) return;
+            if (!isGameStarted || gameOver) return;
             const randomLane = Math.floor(Math.random() * 3);
-            
-            const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16);
-            const coinMat = new THREE.MeshLambertMaterial({ color: 0xffd700 });
-            const coinMesh = new THREE.Mesh(coinGeo, coinMat);
-            coinMesh.rotation.x = Math.PI / 2; 
-            coinMesh.position.set(lanes[randomLane], 0.7, -55);
-            scene.add(coinMesh);
-            coinsArray.push({ mesh: coinMesh, lane: randomLane });
+            const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16); const coinMat = new THREE.MeshLambertMaterial({ color: 0xffd700 }); const coinMesh = new THREE.Mesh(coinGeo, coinMat);
+            coinMesh.rotation.x = Math.PI / 2; coinMesh.position.set(lanes[randomLane], 0.7, -55); scene.add(coinMesh); coinsArray.push({ mesh: coinMesh, lane: randomLane });
         }
-
-        // دالة مخصصة لتوليد العوائق بانتظام
         function spawnObstacle() {
-            if (gameOver) return;
-            const randomLane = Math.floor(Math.random() * 3);
-
-            const isJumpable = Math.random() < 0.35;
-            let obsGeo, obsMat, type;
-
-            if (isJumpable) {
-                obsGeo = new THREE.BoxGeometry(1.5, 0.35, 0.8);
-                obsMat = new THREE.MeshLambertMaterial({ color: 0xf1c40f });
-                type = "jumpable";
-            } else {
-                obsGeo = new THREE.BoxGeometry(1.2, 1.5, 0.8);
-                obsMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 });
-                type = "tall";
-            }
-
-            const obs = new THREE.Mesh(obsGeo, obsMat);
-            let posY = isJumpable ? 0.175 : 0.75;
-            obs.position.set(lanes[randomLane], posY, -55);
-            
-            scene.add(obs);
-            obstacles.push({ mesh: obs, type: type, lane: randomLane });
+            if (!isGameStarted || gameOver) return;
+            const randomLane = Math.floor(Math.random() * 3); const isJumpable = Math.random() < 0.35; let obsGeo, obsMat, type;
+            if (isJumpable) { obsGeo = new THREE.BoxGeometry(1.5, 0.35, 0.8); obsMat = new THREE.MeshLambertMaterial({ color: 0xf1c40f }); type = "jumpable"; }
+            else { obsGeo = new THREE.BoxGeometry(1.2, 1.5, 0.8); obsMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 }); type = "tall"; }
+            const obs = new THREE.Mesh(obsGeo, obsMat); let posY = isJumpable ? 0.175 : 0.75; obs.position.set(lanes[randomLane], posY, -55); scene.add(obs); obstacles.push({ mesh: obs, type: type, lane: randomLane });
         }
-
         function animate() {
-            if (gameOver) return;
             requestAnimationFrame(animate);
-
-            if (isJumping) {
-                jumpVelocity += gravity;
-                playerGroup.position.y += jumpVelocity;
-                if (playerGroup.position.y <= 0) {
-                    playerGroup.position.y = 0;
-                    isJumping = false;
-                    jumpVelocity = 0;
+            if (isGameStarted && !gameOver) {
+                if (isJumping) { jumpVelocity += gravity; playerGroup.position.y += jumpVelocity; if (playerGroup.position.y <= 0) { playerGroup.position.y = 0; isJumping = false; jumpVelocity = 0; } }
+                playerGroup.position.x += (lanes[currentLane] - playerGroup.position.x) * 0.3;
+                const textSpeed = Date.now() * (speed * 0.03); playerGroup.children[2].rotation.x = Math.sin(textSpeed) * 0.7; playerGroup.children[3].rotation.x = -Math.sin(textSpeed) * 0.7;
+                if (hasActiveBoard) { shieldMesh.rotation.y += 0.05; }
+                for (let i = coinsArray.length - 1; i >= 0; i--) {
+                    let c = coinsArray[i]; c.mesh.position.z += speed; c.mesh.rotation.z += 0.05;
+                    if (c.mesh.position.z > 1.4 && c.mesh.position.z < 2.6 && c.lane === currentLane) { scene.remove(c.mesh); coinsArray.splice(i, 1); totalCoins++; currentSessionCoins++; saveStats(); continue; }
+                    if (c.mesh.position.z > 5) { scene.remove(c.mesh); coinsArray.splice(i, 1); }
                 }
-            }
-
-            playerGroup.position.x += (lanes[currentLane] - playerGroup.position.x) * 0.3;
-
-            const textSpeed = Date.now() * (speed * 0.03);
-            playerGroup.children[2].rotation.x = Math.sin(textSpeed) * 0.7;
-            playerGroup.children[3].rotation.x = -Math.sin(textSpeed) * 0.7;
-
-            // تحريك العملات الكثيرة وكشف الاصطدام
-            for (let i = coinsArray.length - 1; i >= 0; i--) {
-                let c = coinsArray[i];
-                c.mesh.position.z += speed;
-                c.mesh.rotation.z += 0.05; 
-
-                if (c.mesh.position.z > 1.4 && c.mesh.position.z < 2.6) {
-                    if (c.lane === currentLane) {
-                        scene.remove(c.mesh);
-                        coinsArray.splice(i, 1);
-                        coins++;
-                        document.getElementById('coins').innerText = coins;
-                        continue;
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    let obs = obstacles[i]; obs.mesh.position.z += speed;
+                    if (obs.mesh.position.z > 1.4 && obs.mesh.position.z < 2.6 && obs.lane === currentLane) {
+                        let hit = (obs.type === "tall" || (obs.type === "jumpable" && playerGroup.position.y < 0.4));
+                        if (hit) { if (hasActiveBoard) { scene.remove(obs.mesh); obstacles.splice(i, 1); deactivateBoard(); continue; } else { triggerGameOver(); } }
                     }
-                }
-
-                if (c.mesh.position.z > 5) {
-                    scene.remove(c.mesh);
-                    coinsArray.splice(i, 1);
-                }
-            }
-
-            // تحريك العوائق الأصلية
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                let obs = obstacles[i];
-                obs.mesh.position.z += speed;
-
-                if (obs.mesh.position.z > 1.4 && obs.mesh.position.z < 2.6) {
-                    if (obs.lane === currentLane) {
-                        if (obs.type === "tall") {
-                            gameOver = true;
-                            document.getElementById('gameOverText').style.display = 'block';
-                        } else if (obs.type === "jumpable") {
-                            if (playerGroup.position.y < 0.4) {
-                                gameOver = true;
-                                document.getElementById('gameOverText').style.display = 'block';
-                            }
-                        }
-                    }
-                }
-
-                if (obs.mesh.position.z > 5) {
-                    scene.remove(obs.mesh);
-                    obstacles.splice(i, 1);
-                    score++;
-                    document.getElementById('score').innerText = score;
-                    speed += 0.012; 
+                    if (obs.mesh.position.z > 5) { scene.remove(obs.mesh); obstacles.splice(i, 1); score++; document.getElementById('score').innerText = score; speed += 0.012; }
                 }
             }
             renderer.render(scene, camera);
         }
-
-        function resetGame() {
-            gameOver = false; document.getElementById('gameOverText').style.display = 'none';
-            score = 0; document.getElementById('score').innerText = score;
-            coins = 0; document.getElementById('coins').innerText = coins; speed = 0.55;
-            currentLane = 1; playerGroup.position.set(lanes[currentLane], 0, 2);
-            isJumping = false; jumpVelocity = 0;
-            obstacles.forEach(obs => scene.remove(obs.mesh)); obstacles = [];
-            coinsArray.forEach(c => scene.remove(c.mesh)); coinsArray = [];
-            animate();
+        function triggerGameOver() {
+            gameOver = true; deactivateBoard();
+            document.getElementById('statsText').innerHTML = `السكور: <span style='color:#ff1f55'>${score}</span><br>الذهب المجموع: <span style='color:#ffd700'>🪙 ${currentSessionCoins}</span>`;
+            document.getElementById('gameOverScreen').style.display = 'block';
+        }
+        function continueGame() {
+            if (totalCoins >= 10) { totalCoins -= 10; saveStats(); gameOver = false; document.getElementById('gameOverScreen').style.display = 'none'; obstacles.forEach(obs => scene.remove(obs.mesh)); obstacles = []; }
+            else { alert("ما عندكش 10 قطع ذهبية! 🪙"); }
+        }
+        function noThanks() { document.getElementById('gameOverScreen').style.display = 'none'; resetGameEngine(); }
+        function resetGameEngine() {
+            gameOver = false; isGameStarted = false; score = 0; document.getElementById('score').innerText = score; currentSessionCoins = 0; speed = 0.55; currentLane = 1;
+            playerGroup.position.set(lanes[currentLane], 0, 2); isJumping = false; jumpVelocity = 0;
+            obstacles.forEach(obs => scene.remove(obs.mesh)); obstacles = []; coinsArray.forEach(c => scene.remove(c.mesh)); coinsArray = [];
+            document.getElementById('startScreen').style.display = 'block'; updatePlayerSkin(); updateHudDisplay();
         }
         window.onload = init;
     </script>
