@@ -2,30 +2,37 @@
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صابواي 3D - مود الجحيم والقفز</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>صابواي 3D - مود الجحيم والعملات الكثيرة</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; }
-        #scoreBoard { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: #ff1f55; font-size: 35px; font-weight: bold; text-shadow: 3px 3px 6px #000; z-index: 10; }
-        #gameOverText { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 26px; background: rgba(255,0,0,0.4); border: 2px solid #ff1f55; padding: 25px; border-radius: 15px; text-align: center; z-index: 10; box-shadow: 0 0 25px rgba(255, 31, 85, 0.6); }
-        /* توجيهات للمستخدم */
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; user-select: none; }
+        
+        /* لوحة العدادات */
+        #hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 30px; z-index: 10; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 4px #000; }
+        #scoreBox { color: #ff1f55; }
+        #coinBox { color: #ffd700; }
+
+        #gameOverText { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 26px; background: rgba(255,0,0,0.4); border: 2px solid #ff1f55; padding: 25px; border-radius: 15px; text-align: center; z-index: 10; box-shadow: 0 0 25px rgba(255, 31, 85, 0.6); cursor: pointer; }
         #hint { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; font-size: 14px; pointer-events: none; text-align: center; width: 80%; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <div id="scoreBoard">السكور: <span id="score">0</span></div>
-    <div id="gameOverText">بلعولك الطريق! 💀<br>اكليكي هنا باش تعاود تريسكي</div>
-    <div id="hint">اضغط فوق للقفز ⬆️ | اضغط تحت يمين/يسار للتحرك ↔️</div>
+    <div id="hud">
+        <div id="scoreBox">🏆 سكور: <span id="score">0</span></div>
+        <div id="coinBox">🪙 ذهب: <span id="coins">0</span></div>
+    </div>
+
+    <div id="gameOverText" onclick="resetGame()">بلعولك الطريق! 💀<brاكليكي هنا باش تعاود ي</div>
+    <div id="hint">اسحب للأعلى للقفز ⬆️ | اسحب يميناً ويساراً للتحرك ↔️</div>
 
     <script>
-        let scene, camera, renderer, playerGroup, obstacles = [];
-        let score = 0; let gameOver = false; 
+        let scene, camera, renderer, playerGroup, obstacles = [], coinsArray = [];
+        let score = 0; let coins = 0; let gameOver = false; 
         let speed = 0.55; 
         const lanes = [-2, 0, 2]; let currentLane = 1;
         
-        // متغيرات القفز
         let isJumping = false;
         let jumpVelocity = 0;
         const gravity = -0.016;
@@ -49,14 +56,14 @@
             scene.add(light);
             scene.add(new THREE.AmbientLight(0x222222));
 
-            // الطريق
+            // الطريق الأصلي
             const roadGeo = new THREE.BoxGeometry(6, 0.1, 100);
             const roadMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
             const road = new THREE.Mesh(roadGeo, roadMat);
             road.position.z = -40;
             scene.add(road);
 
-            // الروبوت (ؤولوت)
+            // الروبوت القديم الأصلي (ؤولوت)
             playerGroup = new THREE.Group();
             const blueMat = new THREE.MeshLambertMaterial({ color: 0x00a8ff });
             const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
@@ -85,29 +92,38 @@
             playerGroup.position.set(lanes[currentLane], 0, 2);
             scene.add(playerGroup);
 
-            setInterval(spawnObstacle, 700);
+            // توقيت توليد مستقل (العوائق تظهر بانتظام، والذهب يظهر بكثرة وسرعة)
+            setInterval(spawnObstacle, 750);
+            setInterval(spawnCoin, 300); // توليد سريع جداً للأموال كل 300 مللي ثانية
 
-            // نظام تحكم ذكي للقفز والتحرك باللمس
-            window.addEventListener('click', (e) => {
-                if (gameOver) { resetGame(); return; }
-                
-                let clickX = e.clientX;
-                let clickY = e.clientY;
-                let h = window.innerHeight;
-                let w = window.innerWidth;
+            // نظام السحب (Swipe Controls)
+            let touchStartX = 0;
+            let touchStartY = 0;
 
-                if (clickY < h * 0.6) {
-                    // إذا كليكا الفوق (يقفز)
-                    if (!isJumping) {
-                        isJumping = true;
-                        jumpVelocity = jumpForce;
+            window.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }, {passive: true});
+
+            window.addEventListener('touchend', (e) => {
+                if (gameOver) return;
+
+                let touchEndX = e.changedTouches[0].clientX;
+                let touchEndY = e.changedTouches[0].clientY;
+
+                let diffX = touchEndX - touchStartX;
+                let diffY = touchEndY - touchStartY;
+
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    if (diffX > 40) {
+                        if (currentLane < 2) currentLane++; 
+                    } else if (diffX < -40) {
+                        if (currentLane > 0) currentLane--; 
                     }
                 } else {
-                    // إذا كليكا التحت (يتحرك يمين أو يسار)
-                    if (clickX > w / 2) {
-                        if (currentLane < 2) currentLane++;
-                    } else {
-                        if (currentLane > 0) currentLane--;
+                    if (diffY < -40 && !isJumping) {
+                        isJumping = true;
+                        jumpVelocity = jumpForce;
                     }
                 }
             });
@@ -115,29 +131,39 @@
             animate();
         }
 
+        // دالة مخصصة لتوليد الأموال بكثرة
+        function spawnCoin() {
+            if (gameOver) return;
+            const randomLane = Math.floor(Math.random() * 3);
+            
+            const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16);
+            const coinMat = new THREE.MeshLambertMaterial({ color: 0xffd700 });
+            const coinMesh = new THREE.Mesh(coinGeo, coinMat);
+            coinMesh.rotation.x = Math.PI / 2; 
+            coinMesh.position.set(lanes[randomLane], 0.7, -55);
+            scene.add(coinMesh);
+            coinsArray.push({ mesh: coinMesh, lane: randomLane });
+        }
+
+        // دالة مخصصة لتوليد العوائق بانتظام
         function spawnObstacle() {
             if (gameOver) return;
+            const randomLane = Math.floor(Math.random() * 3);
 
-            // تحديد نوع العائق عشوائياً: 70% عائق عادي، 30% عائق منخفض للقفز
             const isJumpable = Math.random() < 0.35;
             let obsGeo, obsMat, type;
 
             if (isJumpable) {
-                // عائق أصفر منخفض (مخصص للقفز)
                 obsGeo = new THREE.BoxGeometry(1.5, 0.35, 0.8);
-                obsMat = new THREE.MeshLambertMaterial({ color: 0xf1c40f }); // أصفر نيون
+                obsMat = new THREE.MeshLambertMaterial({ color: 0xf1c40f });
                 type = "jumpable";
             } else {
-                // عائق أحمر عالي (مستحيل تقفز فوقه، لازم تتهرب)
                 obsGeo = new THREE.BoxGeometry(1.2, 1.5, 0.8);
-                obsMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 }); // أحمر جحيمي
+                obsMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 });
                 type = "tall";
             }
 
             const obs = new THREE.Mesh(obsGeo, obsMat);
-            const randomLane = Math.floor(Math.random() * 3);
-            
-            // ضبط الارتفاع حسب النوع لكي يستقر فوق الطريق تماماً
             let posY = isJumpable ? 0.175 : 0.75;
             obs.position.set(lanes[randomLane], posY, -55);
             
@@ -149,7 +175,6 @@
             if (gameOver) return;
             requestAnimationFrame(animate);
 
-            // معالجة حركة القفز والجاذبية للروبوت
             if (isJumping) {
                 jumpVelocity += gravity;
                 playerGroup.position.y += jumpVelocity;
@@ -160,28 +185,45 @@
                 }
             }
 
-            // سلاسة حركة الانتقال بين الممرات
             playerGroup.position.x += (lanes[currentLane] - playerGroup.position.x) * 0.3;
 
-            // تحريك اليدين حركياً
             const textSpeed = Date.now() * (speed * 0.03);
             playerGroup.children[2].rotation.x = Math.sin(textSpeed) * 0.7;
             playerGroup.children[3].rotation.x = -Math.sin(textSpeed) * 0.7;
 
+            // تحريك العملات الكثيرة وكشف الاصطدام
+            for (let i = coinsArray.length - 1; i >= 0; i--) {
+                let c = coinsArray[i];
+                c.mesh.position.z += speed;
+                c.mesh.rotation.z += 0.05; 
+
+                if (c.mesh.position.z > 1.4 && c.mesh.position.z < 2.6) {
+                    if (c.lane === currentLane) {
+                        scene.remove(c.mesh);
+                        coinsArray.splice(i, 1);
+                        coins++;
+                        document.getElementById('coins').innerText = coins;
+                        continue;
+                    }
+                }
+
+                if (c.mesh.position.z > 5) {
+                    scene.remove(c.mesh);
+                    coinsArray.splice(i, 1);
+                }
+            }
+
+            // تحريك العوائق الأصلية
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let obs = obstacles[i];
                 obs.mesh.position.z += speed;
 
-                // كشف التصادم الصارم جداً (المنطقة الحرجة z بين 1.4 و 2.6)
                 if (obs.mesh.position.z > 1.4 && obs.mesh.position.z < 2.6) {
-                    // إذا كان العائق في نفس ممر اللاعب الحالي
                     if (obs.lane === currentLane) {
                         if (obs.type === "tall") {
-                            // العائق العالي يقتلك دائماً حتى لو قفزت
                             gameOver = true;
                             document.getElementById('gameOverText').style.display = 'block';
                         } else if (obs.type === "jumpable") {
-                            // العائق الأصفر يقتلك فقط إذا كنت تمشي على الأرض (ولم تقفز بارتفاع كافٍ)
                             if (playerGroup.position.y < 0.4) {
                                 gameOver = true;
                                 document.getElementById('gameOverText').style.display = 'block';
@@ -195,7 +237,7 @@
                     obstacles.splice(i, 1);
                     score++;
                     document.getElementById('score').innerText = score;
-                    speed += 0.015; // تسارع تدريجي جحيمي
+                    speed += 0.012; 
                 }
             }
             renderer.render(scene, camera);
@@ -203,10 +245,12 @@
 
         function resetGame() {
             gameOver = false; document.getElementById('gameOverText').style.display = 'none';
-            score = 0; document.getElementById('score').innerText = score; speed = 0.55;
+            score = 0; document.getElementById('score').innerText = score;
+            coins = 0; document.getElementById('coins').innerText = coins; speed = 0.55;
             currentLane = 1; playerGroup.position.set(lanes[currentLane], 0, 2);
             isJumping = false; jumpVelocity = 0;
             obstacles.forEach(obs => scene.remove(obs.mesh)); obstacles = [];
+            coinsArray.forEach(c => scene.remove(c.mesh)); coinsArray = [];
             animate();
         }
         window.onload = init;
