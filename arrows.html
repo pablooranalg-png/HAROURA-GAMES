@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>HAROURA MASK 🎭</title>
+    <style>
+        body { margin: 0; background: #050505; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: #fff; font-family: 'Arial', sans-serif; overflow: hidden; }
+        #menu { position: absolute; z-index: 10; text-align: center; }
+        canvas { border: 4px solid #bf00ff; box-shadow: 0 0 30px #bf00ff; border-radius: 8px; cursor: pointer; }
+        button { padding: 15px 30px; font-size: 20px; background: #bf00ff; color: white; border: none; border-radius: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1>HAROURA MASK</h1>
+        <p>1000 مستوى من التحدي! 🎭</p>
+        <button onclick="startGame()">ابدأ الرحلة 🚀</button>
+    </div>
+    <div id="stats" style="display:none">المستوى: <span id="lvl">1</span> | العملات: <span id="coins">0</span></div>
+    <canvas id="gameCanvas" width="300" height="400" style="display:none"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let currentLevel = 1, coins = 0, maze = [], coinsArr = [];
+        let player = { r: 1, c: 1, vx: 0, vy: 0 };
+        let gameActive = false;
+
+        function startGame() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('stats').style.display = 'block';
+            canvas.style.display = 'block';
+            gameActive = true;
+            generateMaze();
+            update();
+        }
+
+        function generateMaze() {
+            maze = Array(13).fill().map(() => Array(10).fill(1));
+            coinsArr = [];
+            function carve(r, c) {
+                maze[r][c] = 0;
+                let dirs = [[0,2], [0,-2], [2,0], [-2,0]].sort(() => Math.random() - 0.5);
+                for(let [dr, dc] of dirs) {
+                    let nr = r + dr, nc = c + dc;
+                    if(nr > 0 && nr < 12 && nc > 0 && nc < 9 && maze[nr][nc] === 1) {
+                        maze[r + dr/2][c + dc/2] = 0;
+                        carve(nr, nc);
+                    }
+                }
+            }
+            carve(1, 1);
+            maze[11][8] = 0;
+            // توزيع عملات أكثر مع تقدم المستويات
+            for(let i=0; i<Math.min(currentLevel + 5, 20); i++) 
+                coinsArr.push({r: Math.floor(Math.random()*11)+1, c: Math.floor(Math.random()*8)+1});
+        }
+
+        function update() {
+            if(!gameActive) return;
+            if (player.vx !== 0 || player.vy !== 0) {
+                let nr = player.r + player.vy, nc = player.c + player.vx;
+                if (maze[nr] && maze[nr][nc] === 0) {
+                    player.r = nr; player.c = nc;
+                    coinsArr = coinsArr.filter(coin => {
+                        if(coin.r === player.r && coin.c === player.c) { coins++; return false; }
+                        return true;
+                    });
+                } else { player.vx = 0; player.vy = 0; }
+            }
+            
+            ctx.clearRect(0, 0, 300, 400);
+            for(let r=0; r<13; r++) {
+                for(let c=0; c<10; c++) {
+                    ctx.fillStyle = maze[r][c] ? '#1a0033' : '#000';
+                    ctx.fillRect(c*30, r*30, 30, 30);
+                }
+            }
+            ctx.fillStyle = '#0f0'; ctx.fillRect(8*30+5, 11*30+5, 20, 20);
+            ctx.fillStyle = '#ff0'; coinsArr.forEach(c => ctx.fillRect(c.c*30+10, c.r*30+10, 10, 10));
+            ctx.fillStyle = '#fff'; ctx.fillRect(player.c*30+5, player.r*30+5, 20, 20);
+            
+            if (player.r === 11 && player.c === 8) {
+                if(currentLevel < 1000) { 
+                    currentLevel++; 
+                    document.getElementById('lvl').innerText = currentLevel;
+                    document.getElementById('coins').innerText = coins;
+                    player = { r: 1, c: 1, vx: 0, vy: 0 }; 
+                    generateMaze(); 
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
+        let startX, startY;
+        canvas.addEventListener('touchstart', e => { startX = e.touches[0].clientX; startY = e.touches[0].clientY; });
+        canvas.addEventListener('touchend', e => {
+            let dx = e.changedTouches[0].clientX - startX;
+            let dy = e.changedTouches[0].clientY - startY;
+            if(Math.abs(dx) > Math.abs(dy)) { player.vx = dx > 0 ? 1 : -1; player.vy = 0; }
+            else { player.vy = dy > 0 ? 1 : -1; player.vx = 0; }
+        });
+    </script>
+</body>
+</html>

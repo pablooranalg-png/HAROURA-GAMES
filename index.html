@@ -1,4 +1,4 @@
-⁸<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -12,10 +12,8 @@
         header h1 { font-size: 32px; color: #38bdf8; text-shadow: 0 0 15px rgba(56,189,248,0.4); margin-bottom: 8px; }
         header p { color: #9ca3af; font-size: 16px; }
 
-        /* شبكة الألعاب */
         .games-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; padding: 10px; }
         
-        /* بطاقة اللعبة */
         .game-card { background: linear-gradient(145deg, #1e293b, #111827); border: 2px solid #1f2937; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: space-between; height: 190px; }
         .game-card:hover { transform: translateY(-5px); border-color: #38bdf8; box-shadow: 0 10px 25px rgba(56,189,248,0.2); }
         
@@ -23,10 +21,12 @@
         .game-title { font-size: 20px; font-weight: bold; color: #ffffff; margin-bottom: 8px; }
         .game-desc { font-size: 14px; color: #9ca3af; line-height: 1.4; margin-bottom: 15px; }
         
-        /* أزرار اللعب مخصصة لكل لعبة حسب جوها */
         .play-btn { display: block; width: 100%; padding: 10px; text-decoration: none; color: #fff; font-weight: bold; border-radius: 8px; transition: opacity 0.2s; font-size: 15px; }
         .play-btn:hover { opacity: 0.9; }
         
+        /* ألوان الأزرار الجديدة */
+        .btn-bloks { background: linear-gradient(135deg, #f59e0b, #b45309); }
+        .btn-arrows { background: linear-gradient(135deg, #8b5cf6, #5b21b6); }
         .btn-car { background: linear-gradient(135deg, #ef4444, #b91c1c); }
         .btn-dino { background: linear-gradient(135deg, #10b981, #047857); }
         .btn-flappy { background: linear-gradient(135deg, #f59e0b, #d97706); }
@@ -35,7 +35,7 @@
         .btn-subway { background: linear-gradient(135deg, #ec4899, #be185d); }
         .btn-xo { background: linear-gradient(135deg, #06b6d4, #0891b2); }
 
-        footer { text-align: center; margin-top: 5px; color: #4b5563; font-size: 14px; padding: 20px; }
+        footer { text-align: center; margin-top: 30px; color: #4b5563; font-size: 14px; padding: 20px; }
     </style>
 </head>
 <body>
@@ -46,12 +46,30 @@
     </header>
 
     <div class="games-grid">
+        
+        <div class="game-card">
+            <div>
+                <div class="game-icon">💥</div>
+                <div class="game-title">HAROURA BLAST</div>
+                <div class="game-desc">لعبة البلوكات الممتعة والمؤثرات البصرية والكومبو القوي.</div>
+            </div>
+            <a href="bloks.html" class="play-btn btn-bloks">العب الآن</a>
+        </div>
+
+        <div class="game-card">
+            <div>
+                <div class="game-icon">🏹</div>
+                <div class="game-title">HAROURA ARROWS</div>
+                <div class="game-desc">تحدي الذكاء، أطلق الأسهم الحقيقية ونظف اللوحة بذكاء.</div>
+            </div>
+            <a href="arrows.html" class="play-btn btn-arrows">العب الآن</a>
+        </div>
 
         <div class="game-card">
             <div>
                 <div class="game-icon">🏎️</div>
                 <div class="game-title">سباق السيارات</div>
-                <div class="game-desc">تحدّ السرعة وتفادى العقبات بالتحكم السلس والمطول.</div>
+                <div class="game-desc">تحدّ السرعة وتفادى العقبات بالتحكم السلس.</div>
             </div>
             <a href="car racing.html" class="play-btn btn-car">العب الآن</a>
         </div>
@@ -60,7 +78,7 @@
             <div>
                 <div class="game-icon">🦖</div>
                 <div class="game-title">لعبة الديناصور Dino</div>
-                <div class="game-desc">القفز الشهير لتفادي الصبار وتحقيق أعلى سكور ممكن.</div>
+                <div class="game-desc">القفز الشهير لتفادي الصبار وتحقيق أعلى سكور.</div>
             </div>
             <a href="dino.html" class="play-btn btn-dino">العب الآن</a>
         </div>
@@ -69,7 +87,7 @@
             <div>
                 <div class="game-icon">🐦</div>
                 <div class="game-title">Flappy Bird</div>
-                <div class="game-desc">حافظ على توازن الطائر بين الأنابيب في لعبة التحدي والصبر.</div>
+                <div class="game-desc">حافظ على توازن الطائر بين الأنابيب الصعبة.</div>
             </div>
             <a href="Flappy.html" class="play-btn btn-flappy">العب الآن</a>
         </div>
@@ -78,7 +96,7 @@
             <div>
                 <div class="game-icon">🧩</div>
                 <div class="game-title">لعبة المتاهة Maze</div>
-                <div class="game-desc">شغّل ذكاءك وابحث عن الطريق الصحيح للخروج بسلام.</div>
+                <div class="game-desc">شغّل ذكاءك وابحث عن الطريق الصحيح للخروج.</div>
             </div>
             <a href="maze.html" class="play-btn btn-maze">العب الآن</a>
         </div>
@@ -87,16 +105,16 @@
             <div>
                 <div class="game-icon">👹</div>
                 <div class="game-title">الهروب من الوحوش</div>
-                <div class="game-desc">تحرك في الممر واختبئ بذكاء قبل أن يداهمك الوحش عشوائياً.</div>
+                <div class="game-desc">تحرك في الممر واختبئ بذكاء من الوحش.</div>
             </div>
             <a href="monsters.html" class="play-btn btn-monsters">العب الآن</a>
         </div>
 
         <div class="game-card">
-            <div>
+            <div style="margin-top: 10px;">
                 <div class="game-icon">🏃‍♂️</div>
                 <div class="game-title">SUBWAY</div>
-                <div class="game-desc">ركض سريع مستمر وتجميع للذهب والهروب من المفتش.</div>
+                <div class="game-desc">ركض سريع وتجميع للذهب والهروب من المفتش.</div>
             </div>
             <a href="SUBWAY.html" class="play-btn btn-subway">العب الآن</a>
         </div>
@@ -105,7 +123,7 @@
             <div>
                 <div class="game-icon">❌⭕</div>
                 <div class="game-title">Tic Tac Toe (XO)</div>
-                <div class="game-desc">التحدي الكلاسيكي الرائع ضد صديقك أو ضد ذكاء الكمبيوتر.</div>
+                <div class="game-desc">التحدي الكلاسيكي الرائع ضد صديقك.</div>
             </div>
             <a href="xo.html" class="play-btn btn-xo">العب الآن</a>
         </div>

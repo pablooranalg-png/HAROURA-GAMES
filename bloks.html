@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>HAROURA BLAST 🧩</title>
+    <style>
+        /* المتغيرات الأساسية لدعم الوضع الفاتح والليلي */
+        :root {
+            --bg-color: #f0f2f5;
+            --text-color: #2c3e50;
+            --container-bg: #ffffff;
+            --grid-bg: #e2e8f0;
+            --cell-bg: #cbd5e1;
+            --shadow: rgba(0,0,0,0.05);
+        }
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --container-bg: #1e293b;
+            --grid-bg: #334155;
+            --cell-bg: #475569;
+            --shadow: rgba(0,0,0,0.3);
+        }
+
+        body { margin: 0; padding: 0; overflow: hidden; background-color: var(--bg-color); font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; transition: background 0.3s, color 0.3s; }
+        
+        /* شاشة البداية / المقدمة */
+        #start-screen { position: absolute; top:0; left:0; width:100vw; height:100vh; background: var(--bg-color); z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        #start-screen h1 { font-size: 42px; color: #ff7a00; margin-bottom: 5px; text-shadow: 0 4px 10px var(--shadow); font-weight: 900; }
+        #start-screen p { color: var(--text-color); font-size: 16px; margin-bottom: 30px; opacity: 0.8; }
+        
+        /* الأزرار الرئيسية */
+        .btn-ui { background: #2ecc71; color: white; border: none; padding: 14px 35px; font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; box-shadow: 0 5px 15px rgba(46,204,113,0.4); transition: transform 0.1s; }
+        .btn-ui:active { transform: scale(0.95); }
+        
+        /* شريط التحكم العلوي */
+        #top-bar { display: flex; justify-content: space-between; align-items: center; width: 90vw; max-width: 380px; margin-bottom: 15px; }
+        #score-board { display: flex; gap: 20px; font-size: 18px; font-weight: bold; color: var(--text-color); }
+        #score-box { color: #2ecc71; }
+        #highscore-box { color: #e67e22; }
+        
+        /* زر تغيير الوضع ليلي/نهاري */
+        #theme-toggle { background: var(--container-bg); color: var(--text-color); border: 1px solid var(--cell-bg); padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px var(--shadow); }
+
+        /* شبكة اللعب 8x8 */
+        #grid { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); gap: 4px; background-color: var(--grid-bg); padding: 6px; border-radius: 12px; box-shadow: 0 8px 24px var(--shadow); width: 90vw; height: 90vw; max-width: 380px; max-height: 380px; position: relative; }
+        .cell { background-color: var(--cell-bg); border-radius: 4px; transition: background-color 0.2s; }
+
+        /* منطقة الأشكال الثلاثة */
+        #shapes-container { display: flex; justify-content: space-around; align-items: center; width: 100%; max-width: 380px; height: 120px; margin-top: 20px; background: var(--container-bg); border-radius: 16px; box-shadow: 0 4px 15px var(--shadow); padding: 10px 0; }
+        .shape-preview { display: grid; gap: 2px; position: relative; touch-action: none; cursor: grab; }
+
+        /* نص ومؤشر الكومبو */
+        #combo-text { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) scale(0); color: #e74c3c; font-size: 36px; font-weight: 900; z-index: 150; pointer-events: none; text-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* ألوان الكتل المبهجة */
+        .block-cyan { background-color: #0ed2f7 !important; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15); }
+        .block-purple { background-color: #9b5de5 !important; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15); }
+        .block-green { background-color: #00f5d4 !important; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15); }
+        .block-yellow { background-color: #fee440 !important; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15); }
+        .block-pink { background-color: #f15bb5 !important; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15); }
+        .block-orange { background-color: #ff7a00 !important; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15); }
+
+        /* شاشة الخسارة */
+        #game-over-screen { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--container-bg); border: 2px solid #2ecc71; padding: 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 100; width: 80%; max-width: 300px; color: var(--text-color); }
+        #game-over-screen h2 { color: #c0392b; margin-top: 0; }
+
+        .dragging { opacity: 0.7; transform: scale(1.1); pointer-events: none; position: absolute; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>HAROURA BLAST 💥</h1>
+        <p>نسخة مخصصة فائقة السلاسة بمؤثرات صوتية 🎮</p>
+        <button class="btn-ui" onclick="hideStartScreen()">إبدأ اللعب الآن 🕹️</button>
+    </div>
+
+    <div id="top-bar">
+        <div id="score-board">
+            <div id="score-box">🏆 النقاط: <span id="score">0</span></div>
+            <div id="highscore-box">⭐ الأعلى: <span id="highscore">0</span></div>
+        </div>
+        <button id="theme-toggle" onclick="toggleTheme()">🌙 وضع ليلي</button>
+    </div>
+
+    <div id="grid">
+        <div id="combo-text">COMBO! 🔥</div>
+    </div>
+
+    <div id="shapes-container"></div>
+
+    <div id="game-over-screen">
+        <h2>انتهت المساحة! 🧩</h2>
+        <p id="final-stats"></p>
+        <button class="btn-ui" onclick="resetGame()">تحدي جديد 🔄</button>
+    </div>
+    <script>
+        const gridElement = document.getElementById('grid');
+        const container = document.getElementById('shapes-container');
+        const scoreElement = document.getElementById('score');
+        const highscoreElement = document.getElementById('highscore');
+        const comboText = document.getElementById('combo-text');
+        
+        let board = Array(8).fill().map(() => Array(8).fill(0));
+        let score = 0;
+        let highscore = parseInt(localStorage.getItem('bb_highscore')) || 0;
+        let currentShapes = [];
+
+        const SHAPE_TYPES = [
+            { layout: [[1]], class: 'block-cyan' },
+            { layout: [[1, 1]], class: 'block-purple' },
+            { layout: [[1], [1]], class: 'block-purple' },
+            { layout: [[1, 1, 1]], class: 'block-green' },
+            { layout: [[1, 1], [1, 1]], class: 'block-yellow' },
+            { layout: [[1, 0], [1, 1]], class: 'block-pink' },
+            { layout: [[1, 1, 1], [0, 1, 0]], class: 'block-cyan' },
+            { layout: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], class: 'block-orange' }
+        ];
+
+        // محرك توليد المؤثرات الصوتية للألعاب برمجياً (Audio Synth)
+        let audioCtx = null;
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'drag') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.08);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+                } else if (type === 'place') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'clear') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                } else if (type === 'combo') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.35);
+                    gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.35);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+                }
+            } catch (e) { console.log("Audio not supported yet"); }
+        }
+
+        function init() {
+            highscoreElement.innerText = highscore;
+            createBoard();
+            generateNewShapes();
+            setupTouchControls();
+            
+            // استعادة نظام الوضع الليلي المفضل إن وجد
+            if (localStorage.getItem('bb_theme') === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+                document.getElementById('theme-toggle').innerText = "☀️ وضع فاتح";
+            }
+        }
+
+        function hideStartScreen() {
+            playSound('place');
+            document.getElementById('start-screen').style.opacity = 0;
+            setTimeout(() => document.getElementById('start-screen').style.display = 'none', 300);
+        }
+
+        function toggleTheme() {
+            playSound('drag');
+            if (document.body.hasAttribute('data-theme')) {
+                document.body.removeAttribute('data-theme');
+                document.getElementById('theme-toggle').innerText = "🌙 وضع ليلي";
+                localStorage.setItem('bb_theme', 'light');
+            } else {
+                document.body.setAttribute('data-theme', 'dark');
+                document.getElementById('theme-toggle').innerText = "☀️ وضع فاتح";
+                localStorage.setItem('bb_theme', 'dark');
+            }
+        }
+
+        function createBoard() {
+            gridElement.innerHTML = '';
+            gridElement.appendChild(comboText); // الحفاظ على نص الكومبو بالداخل
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    gridElement.appendChild(cell);
+                }
+            }
+        }
+
+        function generateNewShapes() {
+            container.innerHTML = '';
+            currentShapes = [];
+            for (let i = 0; i < 3; i++) {
+                let randomType = SHAPE_TYPES[Math.floor(Math.random() * SHAPE_TYPES.length)];
+                currentShapes.push(randomType);
+                createShapePreview(randomType, i);
+            }
+        }
+
+        function createShapePreview(shape, index) {
+            const preview = document.createElement('div');
+            preview.className = 'shape-preview';
+            preview.dataset.index = index;
+            
+            const rows = shape.layout.length;
+            const cols = shape.layout[0].length;
+            preview.style.gridTemplateRows = `repeat(${rows}, 24px)`;
+            preview.style.gridTemplateColumns = `repeat(${cols}, 24px)`;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const block = document.createElement('div');
+                    if (shape.layout[r][c] === 1) {
+                        block.className = `cell ${shape.class}`;
+                    } else {
+                        block.style.opacity = 0;
+                    }
+                    preview.appendChild(block);
+                }
+            }
+            container.appendChild(preview);
+        }
+
+        function setupTouchControls() {
+            let activeElement = null;
+            let startX = 0, startY = 0;
+            let initialLeft = 0, initialTop = 0;
+
+            document.addEventListener('touchstart', function(e) {
+                const target = e.target.closest('.shape-preview');
+                if (!target) return;
+                
+                activeElement = target;
+                playSound('drag');
+                const rect = activeElement.getBoundingClientRect();
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                
+                initialLeft = rect.left;
+                initialTop = rect.top;
+
+                activeElement.style.position = 'fixed';
+                activeElement.style.left = initialLeft + 'px';
+                activeElement.style.top = (initialTop - 80) + 'px'; 
+                activeElement.classList.add('dragging');
+
+                const shapeIndex = parseInt(activeElement.dataset.index);
+                const shape = currentShapes[shapeIndex];
+                const rows = shape.layout.length;
+                const cols = shape.layout[0].length;
+                
+                activeElement.style.gridTemplateRows = `repeat(${rows}, 42px)`;
+                activeElement.style.gridTemplateColumns = `repeat(${cols}, 42px)`;
+            }, { passive: false });
+
+            document.addEventListener('touchmove', function(e) {
+                if (!activeElement) return;
+                e.preventDefault();
+                
+                let currentX = e.touches[0].clientX - startX;
+                let currentY = e.touches[0].clientY - startY;
+
+                activeElement.style.left = (initialLeft + currentX) + 'px';
+                activeElement.style.top = (initialTop + currentY - 80) + 'px'; 
+            }, { passive: false });
+
+            document.addEventListener('touchend', function(e) {
+                if (!activeElement) return;
+
+                const rect = activeElement.getBoundingClientRect();
+                const checkX = rect.left + 20;
+                const checkY = rect.top + 20;
+
+                activeElement.style.display = 'none';
+                const gridTarget = document.elementFromPoint(checkX, checkY);
+                activeElement.style.display = 'grid';
+
+                const cell = gridTarget ? gridTarget.closest('.cell') : null;
+                const shapeIndex = parseInt(activeElement.dataset.index);
+                const shape = currentShapes[shapeIndex];
+
+                let placed = false;
+                if (cell && cell.parentElement === gridElement) {
+                    const startRow = parseInt(cell.dataset.row);
+                    const startCol = parseInt(cell.dataset.col);
+                    
+                    if (canPlaceShape(shape, startRow, startCol)) {
+                        placeShape(shape, startRow, startCol);
+                        activeElement.remove();
+                        currentShapes[shapeIndex] = null;
+                        placed = true;
+                        
+                        checkLines();
+
+                        if (currentShapes.every(s => s === null)) {
+                            generateNewShapes();
+                        }
+
+                        if (isGameOver()) {
+                            triggerGameOver();
+                        }
+                    }
+                }
+
+                if (!placed) {
+                    activeElement.style.position = 'static';
+                    activeElement.classList.remove('dragging');
+                    activeElement.style.left = 'auto';
+                    activeElement.style.top = 'auto';
+                    const rows = shape.layout.length;
+                    const cols = shape.layout[0].length;
+                    activeElement.style.gridTemplateRows = `repeat(${rows}, 24px)`;
+                    activeElement.style.gridTemplateColumns = `repeat(${cols}, 24px)`;
+                }
+
+                activeElement = null;
+            });
+        }
+
+        function canPlaceShape(shape, startRow, startCol) {
+            for (let r = 0; r < shape.layout.length; r++) {
+                for (let c = 0; c < shape.layout[r].length; c++) {
+                    if (shape.layout[r][c] === 1) {
+                        let targetRow = startRow + r;
+                        let targetCol = startCol + c;
+                        if (targetRow >= 8 || targetCol >= 8 || board[targetRow][targetCol] !== 0) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        function placeShape(shape, startRow, startCol) {
+            playSound('place');
+            for (let r = 0; r < shape.layout.length; r++) {
+                for (let c = 0; c < shape.layout[r].length; c++) {
+                    if (shape.layout[r][c] === 1) {
+                        let targetRow = startRow + r;
+                        let targetCol = startCol + c;
+                        board[targetRow][targetCol] = shape.class;
+                        
+                        let domCell = document.querySelector(`[data-row="${targetRow}"][data-col="${targetCol}"]`);
+                        domCell.className = `cell ${shape.class}`;
+                    }
+                }
+            }
+            score += 10;
+            scoreElement.innerText = score;
+        }
+
+        function checkLines() {
+            let rowsToDelete = [];
+            let colsToDelete = [];
+
+            for (let r = 0; r < 8; r++) {
+                if (board[r].every(cell => cell !== 0)) rowsToDelete.push(r);
+            }
+
+            for (let c = 0; c < 8; c++) {
+                let colFilled = true;
+                for (let r = 0; r < 8; r++) {
+                    if (board[r][c] === 0) { colFilled = false; break; }
+                }
+                if (colFilled) colsToDelete.push(c);
+            }
+
+            let linesCleared = rowsToDelete.length + colsToDelete.length;
+            if (linesCleared > 0) {
+                rowsToDelete.forEach(r => {
+                    board[r].fill(0);
+                    for (let c = 0; c < 8; c++) {
+                        document.querySelector(`[data-row="${r}"][data-col="${c}"]`).className = 'cell';
+                    }
+                });
+
+                colsToDelete.forEach(c => {
+                    for (let r = 0; r < 8; r++) {
+                        board[r][c] = 0;
+                        document.querySelector(`[data-row="${r}"][data-col="${c}"]`).className = 'cell';
+                    }
+                });
+
+                // تفعيل تأثير ونظام الـ Combo في حال تفجير خطين أو أكثر معاً
+                if (linesCleared >= 2) {
+                    playSound('combo');
+                    score += linesCleared * 250; // مضاعفة السكور بشكل هائل للكومبو
+                    showComboEffect();
+                } else {
+                    playSound('clear');
+                    score += linesCleared * 120;
+                }
+
+                scoreElement.innerText = score;
+
+                if (score > highscore) {
+                    highscore = score;
+                    highscoreElement.innerText = highscore;
+                    localStorage.setItem('bb_highscore', highscore);
+                }
+            }
+        }
+
+        function showComboEffect() {
+            comboText.style.transform = 'translate(-50%, -50%) scale(1)';
+            setTimeout(() => {
+                comboText.style.transform = 'translate(-50%, -50%) scale(0)';
+            }, 900);
+        }
+
+        function isGameOver() {
+            for (let i = 0; i < currentShapes.length; i++) {
+                let shape = currentShapes[i];
+                if (shape === null) continue;
+
+                for (let r = 0; r < 8; r++) {
+                    for (let c = 0; c < 8; c++) {
+                        if (canPlaceShape(shape, r, c)) return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function triggerGameOver() {
+            document.getElementById('final-stats').innerHTML = `السكور النهائي: <b>${score}</b>`;
+            document.getElementById('game-over-screen').style.display = 'block';
+        }
+
+        function resetGame() {
+            playSound('place');
+            board = Array(8).fill().map(() => Array(8).fill(0));
+            score = 0;
+            scoreElement.innerText = score;
+            document.getElementById('game-over-screen').style.display = 'none';
+            createBoard();
+            generateNewShapes();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
