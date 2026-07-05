@@ -22,6 +22,11 @@
         .btn-buy { background: #ffd700; color: #000; border: none; padding: 5px 12px; font-weight: bold; border-radius: 5px; cursor: pointer; }
         .btn-buy.owned { background: #00a8ff; color: white; cursor: default; }
         #hint { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; font-size: 13px; pointer-events: none; text-align: center; width: 80%; z-index: 5; }
+        
+        /* تصميم حقل الأكواد النيوني */
+        .redeem-box { background: #111122; border: 1px dashed #00a8ff; padding: 12px; border-radius: 10px; margin-top: 15px; }
+        .redeem-input { padding: 8px; width: 55%; border-radius: 6px; border: 1px solid #333; background: #05050a; color: white; text-align: center; font-weight: bold; }
+        .btn-redeem { padding: 8px 15px; background: #00a8ff; color: white; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -37,6 +42,14 @@
         <h2 style="color: #00a8ff; margin-top:0; margin-bottom: 20px;">ؤولوت سابواي 🤖</h2>
         <button class="btn-main" onclick="startGame()">اضغط لبدء اللعب 🏃‍♂️</button>
         <button class="btn-main btn-shop" onclick="openShop('start')">🏪 فتح المتجر</button>
+        
+        <!-- صندوق الأكواد الفعّال -->
+        <div class="redeem-box">
+            <h4 style="color: #00a8ff; margin: 0 0 8px 0; font-size: 14px;">🎁 كود المكافأة (Redeem Code)</h4>
+            <input type="text" id="code-input" class="redeem-input" placeholder="أدخل الكود...">
+            <button class="btn-redeem" onclick="checkRedeemCode()">تفعيل</button>
+            <p id="code-msg" style="font-size: 12px; margin: 6px 0 0 0; font-weight: bold;"></p>
+        </div>
     </div>
 
     <div id="gameOverScreen" class="ui-screen" style="display: none;">
@@ -57,7 +70,6 @@
         </div>
         <button class="btn-main btn-cancel" onclick="closeShop()" style="margin-top: 15px;">العودة للقائمة 🔙</button>
     </div>
-    <div id="hint">اسحب للتحرك | اضغط مرتين (Double Tap) لتفعيل الزلاجة 🛹</div>
     <script>
         let scene, camera, renderer, playerGroup, torsoMesh, shieldMesh, obstacles = [], coinsArray = [];
         let score = 0; let currentSessionCoins = 0; let gameOver = false; let isGameStarted = false;
@@ -69,6 +81,76 @@
         let ownedSkins = JSON.parse(localStorage.getItem('subway_owned_skins')) || ['skin_blue'];
         let activeSkin = localStorage.getItem('subway_active_skin') || 'skin_blue';
         let totalBoards = parseInt(localStorage.getItem('subway_total_boards')) || 0;
+        
+        let customGameName = localStorage.getItem('subway_custom_name') || 'ؤولوت سابواي 🤖';
+
+        function checkRedeemCode() {
+            let inputField = document.getElementById('code-input');
+            let code = inputField.value.trim().toUpperCase();
+            let msg = document.getElementById('code-msg');
+
+            if (!code) return;
+
+            if (localStorage.getItem('sub3d_code_' + code)) {
+                msg.innerText = "❌ الكود مستخدم من قبل!";
+                msg.style.color = "#ff1f55";
+                return;
+            }
+
+            if (code === 'PVP-MOR') {
+                totalCoins += 1000;
+                applyCodeBonus(code, "🎉 مبروك! تم إضافة 1000 عملة ذهبية.");
+            } 
+            else if (code === 'RONAROM') {
+                totalBoards += 100;
+                applyCodeBonus(code, "🎉 مبروك! حصلت على 100 زلاجة حماية.");
+            } 
+            else if (code === 'SWEAT-CUP') {
+                if (!ownedSkins.includes('skin_purple')) ownedSkins.push('skin_purple');
+                activeSkin = 'skin_purple';
+                updatePlayerSkin();
+                applyCodeBonus(code, "🔮 مبروك! تم تفعيل السكن البنفسجي الخارق.");
+            } 
+            else if (code === 'POPORLOAN') {
+                totalCoins += 20000;
+                totalBoards += 50;
+                ['skin_green', 'skin_gold', 'skin_purple'].forEach(skin => {
+                    if (!ownedSkins.includes(skin)) ownedSkins.push(skin);
+                });
+                updatePlayerSkin();
+                applyCodeBonus(code, "👑 كود أسطوري! فتح كل السكنات + 20K ذهب + 50 زلاجة.");
+            }
+            else if (code === 'SWAPOR-NE') {
+                let friendName = prompt("أدخل اسمك لتخصيص اللعبة به:");
+                if (friendName && friendName.trim() !== "") {
+                    customGameName = "سابواي " + friendName.trim() + " 👑";
+                    localStorage.setItem('subway_custom_name', customGameName);
+                    applyCustomName();
+                    applyCodeBonus(code, `👤 مبروك! تم تخصيص اللعبة باسم: ${friendName.trim()}`);
+                } else {
+                    msg.innerText = "❌ لم يتم إدخال اسم صالح!";
+                    msg.style.color = "#ff1f55";
+                }
+            }
+            else {
+                msg.innerText = "❌ كود غير صحيح!";
+                msg.style.color = "#ff1f55";
+            }
+            inputField.value = "";
+        }
+
+        function applyCustomName() {
+            document.querySelector('#startScreen h2').innerText = customGameName;
+            document.title = customGameName;
+        }
+
+        function applyCodeBonus(code, successText) {
+            let msg = document.getElementById('code-msg');
+            localStorage.setItem('sub3d_code_' + code, 'used');
+            saveStats();
+            msg.innerText = successText;
+            msg.style.color = "#00ff66";
+        }
 
         function saveStats() {
             localStorage.setItem('subway_total_coins', totalCoins);
@@ -109,32 +191,107 @@
             if (activeSkin === 'skin_purple') colorHex = 0x9900ff;
             torsoMesh.material.color.setHex(colorHex);
         }
+        
         function init() {
-            scene = new THREE.Scene(); scene.background = new THREE.Color(0x020205); scene.fog = new THREE.FogExp2(0x020205, 0.035);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); camera.position.set(0, 3.8, 6); camera.lookAt(0, 1.5, 0);
-            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
-            const light = new THREE.DirectionalLight(0xffffff, 1.8); light.position.set(5, 10, 7).normalize(); scene.add(light); scene.add(new THREE.AmbientLight(0x222222));
-            const roadGeo = new THREE.BoxGeometry(6, 0.1, 100); const roadMat = new THREE.MeshLambertMaterial({ color: 0x111111 }); const road = new THREE.Mesh(roadGeo, roadMat); road.position.z = -40; scene.add(road);
-            playerGroup = new THREE.Group(); const blueMat = new THREE.MeshLambertMaterial({ color: 0x00a8ff }); const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); const redMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 });
-            torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.4), blueMat); torsoMesh.position.y = 0.8; playerGroup.add(torsoMesh);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), whiteMat); head.position.y = 1.4; playerGroup.add(head);
-            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat); leftArm.position.set(-0.45, 0.8, 0); const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat); rightArm.position.set(0.45, 0.8, 0); playerGroup.add(leftArm, rightArm);
-            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat); leftLeg.position.set(-0.2, 0.22, 0); const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat); rightLeg.position.set(0.2, 0.22, 0); playerGroup.add(leftLeg, rightLeg);
-            const shieldGeo = new THREE.SphereGeometry(1.0, 16, 16); const shieldMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.0 }); shieldMesh = new THREE.Mesh(shieldGeo, shieldMat); shieldMesh.position.y = 0.8; playerGroup.add(shieldMesh);
-            playerGroup.position.set(lanes[currentLane], 0, 2); scene.add(playerGroup);
-            updatePlayerSkin(); updateHudDisplay();
-            setInterval(spawnObstacle, 750); setInterval(spawnCoin, 300);
+            scene = new THREE.Scene(); 
+            scene.background = new THREE.Color(0x1a0f05); 
+            scene.fog = new THREE.FogExp2(0xff9933, 0.025);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); 
+            camera.position.set(0, 3.8, 6); 
+            camera.lookAt(0, 1.5, 0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true }); 
+            renderer.setSize(window.innerWidth, window.innerHeight); 
+            document.body.appendChild(renderer.domElement);
+            
+            const loader = new THREE.TextureLoader();
+            loader.load('pngtree-asphalt-road-winding-through-a-mountain-landscape-at-sunset-image_16744020.jpg', function(texture) {
+                scene.background = texture;
+            });
+
+            const light = new THREE.DirectionalLight(0xffaa44, 2.0); 
+            light.position.set(0, 15, -10).normalize(); 
+            scene.add(light); 
+            scene.add(new THREE.AmbientLight(0x443322));
+            
+            const roadGeo = new THREE.BoxGeometry(6, 0.1, 100); 
+            const roadMat = new THREE.MeshLambertMaterial({ color: 0x555555 }); 
+            const road = new THREE.Mesh(roadGeo, roadMat); 
+            road.position.z = -40; 
+            scene.add(road);
+            
+            playerGroup = new THREE.Group(); 
+            const blueMat = new THREE.MeshLambertMaterial({ color: 0x00a8ff }); 
+            const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); 
+            const redMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 });
+            
+            torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.4), blueMat); 
+            torsoMesh.position.y = 0.8; 
+            playerGroup.add(torsoMesh);
+            
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), whiteMat); 
+            head.position.y = 1.4; 
+            playerGroup.add(head);
+            
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat); 
+            leftArm.position.set(-0.45, 0.8, 0); 
+            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), redMat); 
+            rightArm.position.set(0.45, 0.8, 0); 
+            playerGroup.add(leftArm, rightArm);
+            
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat); 
+            leftLeg.position.set(-0.2, 0.22, 0); 
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.18), whiteMat); 
+            rightLeg.position.set(0.2, 0.22, 0); 
+            playerGroup.add(leftLeg, rightLeg);
+            
+            const shieldGeo = new THREE.SphereGeometry(1.0, 16, 16); 
+            const shieldMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.0 }); 
+            shieldMesh = new THREE.Mesh(shieldGeo, shieldMat); 
+            shieldMesh.position.y = 0.8; 
+            playerGroup.add(shieldMesh);
+            
+            playerGroup.position.set(lanes[currentLane], 0, 2); 
+            scene.add(playerGroup);
+            
+            updatePlayerSkin(); 
+            updateHudDisplay(); 
+            applyCustomName();
+            
+            setInterval(spawnObstacle, 750); 
+            setInterval(spawnCoin, 300);
+            
             let touchStartX = 0; let touchStartY = 0;
+            
             window.addEventListener('touchstart', (e) => {
-                touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
-                let currentTime = new Date().getTime(); let tapLength = currentTime - lastTapTime;
-                if (tapLength < 250 && tapLength > 0) { manuallyActivateBoard(); }
+                const touchX = e.touches[0].clientX;
+                touchStartX = touchX; 
+                touchStartY = e.touches[0].clientY;
+                
+                let currentTime = new Date().getTime(); 
+                let tapLength = currentTime - lastTapTime;
+                
+                // حساب حدود منطقة وسط الشاشة (بين 33% و 66% من العرض)
+                const screenWidth = window.innerWidth;
+                const minCenter = screenWidth * 0.33;
+                const maxCenter = screenWidth * 0.66;
+                
+                if (tapLength < 250 && tapLength > 0) { 
+                    // التحقق من أن الضغط المزدوج حدث فقط في الوسط
+                    if (touchX >= minCenter && touchX <= maxCenter) {
+                        manuallyActivateBoard(); 
+                    }
+                }
                 lastTapTime = currentTime;
             }, {passive: true});
+            
             window.addEventListener('touchend', (e) => {
                 if (!isGameStarted || gameOver) return;
-                let touchEndX = e.changedTouches[0].clientX; let touchEndY = e.changedTouches[0].clientY;
-                let diffX = touchEndX - touchStartX; let diffY = touchEndY - touchStartY;
+                let touchEndX = e.changedTouches[0].clientX; 
+                let touchEndY = e.changedTouches[0].clientY;
+                let diffX = touchEndX - touchStartX; 
+                let diffY = touchEndY - touchStartY;
                 if (Math.abs(diffX) > Math.abs(diffY)) {
                     if (diffX > 40 && currentLane < 2) currentLane++; 
                     else if (diffX < -40 && currentLane > 0) currentLane--; 
@@ -142,7 +299,7 @@
             });
             animate();
         }
-        function startGame() { document.getElementById('startScreen').style.display = 'none'; isGameStarted = true; }
+        function startGame() { document.getElementById('startScreen').style.display = 'none'; document.getElementById('code-msg').innerText = ""; isGameStarted = true; }
         function openShop(fromScreen) { previousScreen = fromScreen; document.getElementById('startScreen').style.display = 'none'; document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('shopScreen').style.display = 'block'; }
         function closeShop() { document.getElementById('shopScreen').style.display = 'none'; if(previousScreen === 'start') { document.getElementById('startScreen').style.display = 'block'; } else { document.getElementById('gameOverScreen').style.display = 'block'; } }
         function manuallyActivateBoard() {
@@ -155,19 +312,27 @@
             }
         }
         function deactivateBoard() { hasActiveBoard = false; clearInterval(boardTimerInterval); shieldMesh.material.opacity = 0.0; document.getElementById('boardTimer').style.display = 'none'; }
+        
         function spawnCoin() {
             if (!isGameStarted || gameOver) return;
             const randomLane = Math.floor(Math.random() * 3);
-            const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16); const coinMat = new THREE.MeshLambertMaterial({ color: 0xffd700 }); const coinMesh = new THREE.Mesh(coinGeo, coinMat);
-            coinMesh.rotation.x = Math.PI / 2; coinMesh.position.set(lanes[randomLane], 0.7, -55); scene.add(coinMesh); coinsArray.push({ mesh: coinMesh, lane: randomLane });
+            const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16); 
+            const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.2, metalness: 0.8 }); 
+            const coinMesh = new THREE.Mesh(coinGeo, coinMat);
+            coinMesh.rotation.x = Math.PI / 2; 
+            coinMesh.position.set(lanes[randomLane], 0.7, -55); 
+            scene.add(coinMesh); 
+            coinsArray.push({ mesh: coinMesh, lane: randomLane });
         }
+        
         function spawnObstacle() {
             if (!isGameStarted || gameOver) return;
             const randomLane = Math.floor(Math.random() * 3); const isJumpable = Math.random() < 0.35; let obsGeo, obsMat, type;
-            if (isJumpable) { obsGeo = new THREE.BoxGeometry(1.5, 0.35, 0.8); obsMat = new THREE.MeshLambertMaterial({ color: 0xf1c40f }); type = "jumpable"; }
-            else { obsGeo = new THREE.BoxGeometry(1.2, 1.5, 0.8); obsMat = new THREE.MeshLambertMaterial({ color: 0xff1f55 }); type = "tall"; }
+            if (isJumpable) { obsGeo = new THREE.BoxGeometry(1.5, 0.35, 0.8); obsMat = new THREE.MeshLambertMaterial({ color: 0xd35400 }); type = "jumpable"; }
+            else { obsGeo = new THREE.BoxGeometry(1.2, 1.5, 0.8); obsMat = new THREE.MeshLambertMaterial({ color: 0xc0392b }); type = "tall"; }
             const obs = new THREE.Mesh(obsGeo, obsMat); let posY = isJumpable ? 0.175 : 0.75; obs.position.set(lanes[randomLane], posY, -55); scene.add(obs); obstacles.push({ mesh: obs, type: type, lane: randomLane });
         }
+        
         function animate() {
             requestAnimationFrame(animate);
             if (isGameStarted && !gameOver) {
@@ -211,3 +376,4 @@
     </script>
 </body>
 </html>
+  
