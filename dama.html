@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>لعبة الداما الاحترافية 🐱 التحديث اللانهائي</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background: #1a0f05; color: white;
+            font-family: 'Arial', sans-serif; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; min-height: 100vh;
+            overflow-x: hidden; user-select: none; touch-action: manipulation;
+        }
+        #menu-screen, #game-screen {
+            display: flex; flex-direction: column; align-items: center;
+            width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box;
+        }
+        h1 {
+            color: #ffd700; text-shadow: 0 0 10px #ff1f55; margin-bottom: 25px;
+            font-size: 28px; text-align: center;
+        }
+        .btn {
+            background: #ff1f55; color: white; border: none; padding: 14px 25px;
+            font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer;
+            margin: 10px 0; width: 100%; box-shadow: 0 4px 15px rgba(255, 31, 85, 0.4);
+            transition: transform 0.2s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-cpu { background: #00a8ff; box-shadow: 0 4px 15px rgba(0, 168, 255, 0.4); }
+        .btn-diff { background: #2ecc71; font-size: 16px; padding: 10px; width: 30%; margin: 5px; box-shadow: none;}
+        .btn-diff.active { border: 3px solid white; box-shadow: 0 0 10px #2ecc71; }
+        
+        #difficulty-section {
+            display: none; width: 100%; text-align: center; margin-top: 10px;
+            background: rgba(0,0,0,0.4); padding: 10px; border-radius: 10px;
+        }
+        #status {
+            font-size: 20px; font-weight: bold; margin-bottom: 15px;
+            color: #ffd700; text-align: center; min-height: 28px;
+        }
+        #board {
+            display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+            width: 100%; aspect-ratio: 1 / 1; border: 4px solid #ffd700;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.3); border-radius: 8px;
+            background: #000; margin-bottom: 20px;
+        }
+        .cell { display: flex; align-items: center; justify-content: center; position: relative; }
+        .light { background: #f0d9b5; }
+        .dark { background: #b58863; }
+        
+        .piece {
+            width: 82%; height: 82%; border-radius: 50%;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.6), 0 3px 6px rgba(0,0,0,0.4);
+            cursor: pointer; position: relative; transition: transform 0.2s; z-index: 2;
+        }
+        .piece.red { background: #cc1111; border: 2px solid #880000; }
+        .piece.black { background: #222222; border: 2px solid #000000; }
+        .piece.selected { transform: scale(1.08); border-color: #ffd700 !important; box-shadow: 0 0 15px #ffd700; }
+        
+        .suggested-move {
+            width: 30%; height: 30%; border-radius: 50%;
+            background: rgba(46, 204, 113, 0.7); box-shadow: 0 0 10px #2ecc71;
+            z-index: 3; cursor: pointer;
+        }
+        .king::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: url('lv_0_20260705182947.png') no-repeat center; background-size: 75%;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="menu-screen">
+        <h1>لعبة الداما الأسطورية 🎭</h1>
+        <button class="btn" onclick="startLocalGame()">👥 ضد صديق (نفس الهاتف)</button>
+        <button class="btn btn-cpu" onclick="showCpuSettings()">🤖 ضد الكمبيوتر (CPU)</button>
+        
+        <div id="difficulty-section">
+            <p style="margin: 5px 0; font-weight: bold;">اختر مستوى الصعوبة:</p>
+            <div style="display: flex; justify-content: center;">
+                <button class="btn btn-diff active" id="diff-easy" onclick="setDifficulty('easy')">سهل</button>
+                <button class="btn btn-diff" id="diff-medium" onclick="setDifficulty('medium')">متوسط</button>
+                <button class="btn btn-diff" id="diff-hard" onclick="setDifficulty('hard')">صعب</button>
+            </div>
+            <button class="btn" style="margin-top: 10px; background: #2ecc71;" onclick="startCpuGame()">ابدأ التحدي 🚀</button>
+        </div>
+    </div>
+
+    <div id="game-screen" style="display: none;">
+        <div id="status">دور اللاعب الأحمر</div>
+        <div id="board"></div>
+        <button class="btn btn-cancel" style="background: #444;" onclick="backToMenu()">🔙 العودة للقائمة</button>
+    </div>
+    <script>
+        const boardElement = document.getElementById('board');
+        let boardState = [];
+        let gameMode = 'local'; 
+        let cpuDifficulty = 'easy'; 
+        let turn = 'red'; 
+        let selectedPiece = null;
+        let availableMoves = [];
+        let isMultiJumpMode = false; // تفعيل قفل السلسلة للأكل المتتالي
+
+        function initBoardState() {
+            boardState = Array(8).fill().map(() => Array(8).fill(0));
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if ((r + c) % 2 === 1) boardState[r][c] = -1;
+                }
+            }
+            for (let r = 5; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if ((r + c) % 2 === 1) boardState[r][c] = 1;
+                }
+            }
+        }
+
+        function showCpuSettings() { document.getElementById('difficulty-section').style.display = 'block'; }
+        function setDifficulty(level) {
+            cpuDifficulty = level;
+            document.querySelectorAll('.btn-diff').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('diff-' + level).classList.add('active');
+        }
+        function backToMenu() {
+            isMultiJumpMode = false;
+            document.getElementById('game-screen').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'flex';
+        }
+        function startLocalGame() { gameMode = 'local'; setupGame(); }
+        function startCpuGame() { gameMode = 'cpu'; setupGame(); }
+
+        function setupGame() {
+            document.getElementById('menu-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            turn = 'red'; selectedPiece = null; availableMoves = []; isMultiJumpMode = false;
+            initBoardState(); renderBoard(); updateStatusDisplay();
+        }
+
+        function updateStatusDisplay() {
+            const statusText = document.getElementById('status');
+            if (isMultiJumpMode) {
+                statusText.innerText = turn === 'red' ? "🔴 يجب إكمال الأكل المتتالي!" : "⚫ الكمبيوتر يكمل الأكل المتتالي...";
+                statusText.style.color = "#2ecc71";
+                return;
+            }
+            if (turn === 'red') { statusText.innerText = "دورك (الأحمر) 🔴"; statusText.style.color = "#ff1f55"; } 
+            else { statusText.innerText = gameMode === 'cpu' ? "جاري تفكير الـ CPU... 🤖" : "دور صديقك (الأسود) ⚫"; statusText.style.color = "#00a8ff"; }
+        }
+
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = `cell ${(r + c) % 2 === 1 ? 'dark' : 'light'}`;
+                    cell.dataset.row = r; cell.dataset.col = c;
+
+                    const val = boardState[r][c];
+                    if (val !== 0) {
+                        const piece = document.createElement('div');
+                        piece.className = `piece ${val > 0 ? 'red' : 'black'} ${Math.abs(val) === 2 ? 'king' : ''}`;
+                        if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) {
+                            piece.classList.add('selected');
+                        }
+                        piece.addEventListener('click', (e) => { e.stopPropagation(); handlePieceClick(r, c); });
+                        cell.appendChild(piece);
+                    }
+
+                    const isMove = availableMoves.some(m => m.targetR === r && m.targetC === c);
+                    if (isMove) {
+                        const hint = document.createElement('div');
+                        hint.className = 'suggested-move';
+                        hint.addEventListener('click', () => makeMove(r, c));
+                        cell.appendChild(hint);
+                    }
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        function handlePieceClick(r, c) {
+            if (gameMode === 'cpu' && turn === 'black') return;
+            if (isMultiJumpMode) return; // حظر تغيير القطعة أثناء الأكل الإجباري المتتالي
+
+            const pieceVal = boardState[r][c];
+            if ((turn === 'red' && pieceVal > 0) || (turn === 'black' && pieceVal < 0)) {
+                // ميزة إجبار الأكل العام: إذا كان أي أحد من الفريق يملك فرصة أكل، يجب إجباره عليها
+                const allTeamMoves = getAllTeamMoves(turn, boardState);
+                const teamHasJumps = allTeamMoves.some(m => m.isJump);
+                const pMoves = getPieceMoves(r, c, boardState);
+                const thisPieceHasJumps = pMoves.some(m => m.isJump);
+
+                if (teamHasJumps && !thisPieceHasJumps) {
+                    alert("⚠️ يجب أن تختار قطعة قادرة على أكل جنود الخصم!");
+                    return;
+                }
+
+                selectedPiece = { r, c };
+                availableMoves = teamHasJumps ? pMoves.filter(m => m.isJump) : pMoves;
+                renderBoard();
+            }
+        }
+
+        function getPieceMoves(r, c, state) {
+            const val = state[r][c];
+            const moves = [];
+            if (val === 0) return moves;
+            const isKing = Math.abs(val) === 2;
+            
+            let dirs = isKing ? [[1,1], [1,-1], [-1,1], [-1,-1]] : (val === 1 ? [[-1,1], [-1,-1]] : [[1,1], [1,-1]]);
+
+            dirs.forEach(([dr, dc]) => {
+                const nextR = r + dr; const nextC = c + dc;
+                const jumpR = r + (dr * 2); const jumpC = c + (dc * 2);
+                
+                if (jumpR >= 0 && jumpR < 8 && jumpC >= 0 && jumpC < 8) {
+                    const midPiece = state[nextR][nextC];
+                    const targetPiece = state[jumpR][jumpC];
+                    if (midPiece !== 0 && Math.sign(midPiece) !== Math.sign(val) && targetPiece === 0) {
+                        moves.push({ targetR: jumpR, targetC: jumpC, isJump: true, midR: nextR, midC: nextC });
+                    }
+                }
+            });
+
+            if (moves.length === 0 && !isMultiJumpMode) {
+                dirs.forEach(([dr, dc]) => {
+                    const nextR = r + dr; const nextC = c + dc;
+                    if (nextR >= 0 && nextR < 8 && nextC >= 0 && nextC < 8) {
+                        if (state[nextR][nextC] === 0) {
+                            moves.push({ targetR: nextR, targetC: nextC, isJump: false });
+                        }
+                    }
+                });
+            }
+            return moves;
+        }
+
+        function getAllTeamMoves(team, state) {
+            let moves = [];
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const val = state[r][c];
+                    if ((team === 'red' && val > 0) || (team === 'black' && val < 0)) {
+                        const pMoves = getPieceMoves(r, c, state);
+                        pMoves.forEach(m => moves.push({ fromR: r, fromC: c, ...m }));
+                    }
+                }
+            }
+            const jumps = moves.filter(m => m.isJump);
+            return jumps.length > 0 ? jumps : moves;
+        }
+
+        function makeMove(targetR, targetC) {
+            const move = availableMoves.find(m => m.targetR === targetR && m.targetC === targetC);
+            if (!move) return;
+
+            const r = selectedPiece.r; const c = selectedPiece.c;
+            let val = boardState[r][c];
+
+            boardState[targetR][targetC] = val;
+            boardState[r][c] = 0;
+
+            if (move.isJump) {
+                boardState[move.midR][move.midC] = 0;
+            }
+
+            if (val === 1 && targetR === 0) boardState[targetR][targetC] = 2;
+            if (val === -1 && targetR === 7) boardState[targetR][targetC] = -2;
+
+            // حل المشكلة الأساسية: فحص وجود أكلة تالية متتابعة لنفس القطعة المحددة
+            if (move.isJump) {
+                selectedPiece = { r: targetR, c: targetC };
+                const nextJumps = getPieceMoves(targetR, targetC, boardState).filter(m => m.isJump);
+                
+                if (nextJumps.length > 0) {
+                    isMultiJumpMode = true;
+                    availableMoves = nextJumps;
+                    renderBoard();
+                    updateStatusDisplay();
+                    
+                    // إذا كان الكمبيوتر هو من يلعب وحصل على أكلة متتابعة، ينفذها فوراً
+                    if (gameMode === 'cpu' && turn === 'black') {
+                        setTimeout(() => { executeCpuAutomaticJump(targetR, targetC, nextJumps); }, 600);
+                    }
+                    return; 
+                }
+            }
+
+            // إنهاء السلسلة ونقل الدور بالكامل
+            isMultiJumpMode = false;
+            selectedPiece = null;
+            availableMoves = [];
+            turn = turn === 'red' ? 'black' : 'red';
+            renderBoard();
+            updateStatusDisplay();
+
+            if (checkGameOver()) return;
+
+            if (gameMode === 'cpu' && turn === 'black') {
+                setTimeout(makeCpuMove, 600);
+            }
+        }
+
+        function executeCpuAutomaticJump(r, c, jumps) {
+            let nextMove = jumps[Math.floor(Math.random() * jumps.length)];
+            makeMove(nextMove.targetR, nextMove.targetC);
+        }
+
+        function makeCpuMove() {
+            const cpuMoves = getAllTeamMoves('black', boardState);
+            if (cpuMoves.length === 0) { alert("🎉 مبروك! لقد هزمت الكمبيوتر!"); backToMenu(); return; }
+
+            let chosenMove = cpuMoves[0];
+
+            if (cpuDifficulty === 'easy') {
+                chosenMove = cpuMoves[Math.floor(Math.random() * cpuMoves.length)];
+            } 
+            else if (cpuDifficulty === 'medium') {
+                const jumps = cpuMoves.filter(m => m.isJump);
+                if (jumps.length > 0) chosenMove = jumps[Math.floor(Math.random() * jumps.length)];
+                else chosenMove = cpuMoves[Math.floor(Math.random() * cpuMoves.length)];
+            } 
+            else if (cpuDifficulty === 'hard') {
+                let bestScore = -1000;
+                cpuMoves.forEach(move => {
+                    let score = 0;
+                    if (move.isJump) score += 20;
+                    if (move.targetR === 7) score += 10;
+
+                    let tempState = boardState.map(row => [...row]);
+                    tempState[move.targetR][move.targetC] = tempState[move.fromR][move.fromC];
+                    tempState[move.fromR][move.fromC] = 0;
+                    if (move.isJump) tempState[move.midR][move.midC] = 0;
+
+                    const opponentNextMoves = getAllTeamMoves('red', tempState);
+                    const willBeEaten = opponentNextMoves.some(m => m.isJump && m.midR === move.targetR && m.midC === move.targetC);
+                    if (willBeEaten) score -= 15;
+
+                    if (score > bestScore) { bestScore = score; chosenMove = move; }
+                });
+            }
+
+            selectedPiece = { r: chosenMove.fromR, c: chosenMove.fromC };
+            availableMoves = getPieceMoves(chosenMove.fromR, chosenMove.fromC, boardState);
+            if(chosenMove.isJump) availableMoves = availableMoves.filter(m => m.isJump);
+            
+            setTimeout(() => {
+                makeMove(chosenMove.targetR, chosenMove.targetC);
+            }, 400);
+        }
+
+        function checkGameOver() {
+            const redMoves = getAllTeamMoves('red', boardState);
+            const blackMoves = getAllTeamMoves('black', boardState);
+            if (redMoves.length === 0) { alert(gameMode === 'cpu' ? "🤖 خسرنا المعركة! فاز الكمبيوتر." : "⚫ صديقك فاز عليك!"); backToMenu(); return true; }
+            if (blackMoves.length === 0) { alert("🔴 كفووو! لقد فزت بالمباراة!"); backToMenu(); return true; }
+            return false;
+        }
+    </script>
+</body>
+</html>
